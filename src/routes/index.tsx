@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Clock, Flower2, Gem, Truck } from "lucide-react";
-import CollectionRevolution from "@/components/CollectionRevolution";
+import HeroAtelier from "@/components/HeroAtelier";
+import CollectionsShowcase from "@/components/CollectionsShowcase";
+
 import ProductCard from "@/components/ProductCard";
 import GallerySection from "@/components/GallerySection";
 import InstagramSection from "@/components/InstagramSection";
