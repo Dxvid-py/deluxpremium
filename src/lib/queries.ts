@@ -118,20 +118,35 @@ export const instagramQuery = {
   },
 };
 
-/** Sube una imagen al almacén del atelier y devuelve una URL utilizable. */
-export async function uploadMedia(file: File, folder = "productos"): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage.from("media").upload(path, file, {
-    cacheControl: "31536000",
-    upsert: false,
+/**
+ * Guarda una imagen elegida desde el dispositivo dentro de la base local.
+ * La convierte a una URL de datos comprimida para que quepa en el navegador.
+ */
+export async function uploadMedia(file: File, _folder = "productos"): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen"));
+    reader.readAsDataURL(file);
   });
-  if (error) throw error;
-  const { data, error: signError } = await supabase.storage
-    .from("media")
-    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
-  if (signError || !data?.signedUrl) throw signError ?? new Error("No se pudo firmar la imagen");
-  return data.signedUrl;
+
+  // Redimensiona a 1400px de ancho máximo para no llenar el almacenamiento.
+  return await new Promise<string>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1400;
+      const scale = Math.min(1, max / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(dataUrl);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 export const categoriesQuery = {
