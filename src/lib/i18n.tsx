@@ -13,7 +13,7 @@ type Dict = Record<string, { es: string; en: string }>;
 const DICT: Dict = {
   "nav.home": { es: "Inicio", en: "Home" },
   "nav.catalog": { es: "Catálogo", en: "Catalog" },
-  "nav.atelier": { es: "Atelier", en: "Atelier" },
+  "nav.atelier": { es: "Floristería", en: "Flower shop" },
   "nav.contact": { es: "Contacto", en: "Contact" },
   "nav.panel": { es: "Panel", en: "Admin" },
   "nav.account": { es: "Mi cuenta", en: "My account" },
@@ -66,12 +66,12 @@ const DICT: Dict = {
 
   "rev.seal": { es: "PRESIONA PARA DESCUBRIR", en: "PRESS TO DISCOVER" },
   "home.collections.eyebrow": { es: "Colecciones", en: "Collections" },
-  "home.collections.title1": { es: "Tres maneras de", en: "Three ways to" },
-  "home.collections.title2": { es: "decir algo", en: "say something" },
-  "home.featured.eyebrow": { es: "Selección del atelier", en: "Atelier selection" },
+  "home.collections.title1": { es: "Nuestras tres", en: "Our three" },
+  "home.collections.title2": { es: "colecciones", en: "collections" },
+  "home.featured.eyebrow": { es: "Selección de la floristería", en: "Shop selection" },
   "home.featured.title1": { es: "Productos", en: "Featured" },
   "home.featured.title2": { es: "destacados", en: "creations" },
-  "home.editorial.eyebrow": { es: "El atelier", en: "The atelier" },
+  "home.editorial.eyebrow": { es: "La floristería", en: "The flower shop" },
   "home.editorial.title1": { es: "Flores tratadas como", en: "Flowers treated like" },
   "home.editorial.title2": { es: "alta costura", en: "haute couture" },
   "home.editorial.p1": {
@@ -260,5 +260,40 @@ export function useContentTranslator(texts: (string | null | undefined)[]) {
       return data?.map?.[value.trim()] ?? value;
     },
     [lang, data],
+  );
+}
+
+/**
+ * Contenido bilingüe de la base de datos.
+ * Usa el campo `<campo>_en` escrito en el panel si existe; si no, recurre a la
+ * traducción automática. Así nunca queda una mezcla de idiomas.
+ */
+export function useLocalizedContent<T extends Record<string, unknown>>(
+  rows: T[],
+  fields: string[],
+) {
+  const { lang } = useI18n();
+  const missing = useMemo(
+    () =>
+      rows.flatMap((row) =>
+        fields
+          .filter((f) => !(typeof row[`${f}_en`] === "string" && (row[`${f}_en`] as string).trim()))
+          .map((f) => (typeof row[f] === "string" ? (row[f] as string) : "")),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(rows.map((r) => fields.map((f) => [r[f], r[`${f}_en`]]))), fields.join()],
+  );
+  const tc = useContentTranslator(missing);
+
+  return useCallback(
+    (row: Record<string, unknown> | null | undefined, field: string) => {
+      if (!row) return "";
+      const base = typeof row[field] === "string" ? (row[field] as string) : "";
+      if (lang === "es") return base;
+      const manual = row[`${field}_en`];
+      if (typeof manual === "string" && manual.trim()) return manual;
+      return tc(base);
+    },
+    [lang, tc],
   );
 }

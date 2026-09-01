@@ -249,7 +249,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        image_url: "/img/arreglo_amor3.jpeg",
+        image_url: "/img/arreglo_amor1.jpeg",
         caption: "Sorpresa de cumpleaños",
         customer_name: "Andrés M.",
         sort_order: 2,
@@ -257,7 +257,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        image_url: "/img/arreglo_amor5.jpeg",
+        image_url: "/img/arreglo_amor2.jpeg",
         caption: "Pedida de mano",
         customer_name: "Laura & Juan",
         sort_order: 3,
@@ -265,7 +265,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        image_url: "/img/arreglo_amor7.jpeg",
+        image_url: "/img/cat-amor.jpg",
         caption: "Gracias por tanto",
         customer_name: "Familia Peña",
         sort_order: 4,

@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 export type Category = {
   id: string;
   name: string;
+  name_en?: string | null;
+  description_en?: string | null;
   slug: string;
   description: string;
   image_url: string;
@@ -13,6 +15,8 @@ export type Category = {
 export type Product = {
   id: string;
   name: string;
+  name_en?: string | null;
+  description_en?: string | null;
   slug: string;
   description: string;
   price_cop: number;
