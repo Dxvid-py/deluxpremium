@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Menu, ShoppingBag, X } from "lucide-react";
+import { LogOut, Menu, ShoppingBag, User, X } from "lucide-react";
+import { supabase, type Session } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import { categoriesQuery } from "@/lib/queries";
 import { useI18n } from "@/lib/i18n";
@@ -21,6 +22,23 @@ export default function Header() {
   const [pop, setPop] = useState(false);
   const prevCount = useRef(count);
   const { data: categories } = useQuery(categoriesQuery);
+  const [session, setSession] = useState<Session | null>(null);
+
+  // Sesión del visitante: se lee al montar y se mantiene al día con los
+  // cambios de autenticación (entrar / salir).
+  useEffect(() => {
+    let alive = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (alive) setSession(data.session);
+    });
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => {
+      alive = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  const initial = session?.user.email?.[0]?.toUpperCase() ?? "";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -104,6 +122,25 @@ export default function Header() {
             ))}
           </div>
 
+          <Link
+            to="/cuenta"
+            aria-label={session ? t("nav.account") : t("auth.signIn")}
+            title={session ? session.user.email : t("auth.signIn")}
+            className="press relative flex h-9 items-center gap-2 rounded-full border border-border px-3 transition-colors hover:border-primary/60 hover:bg-primary/10"
+            activeProps={{ className: "border-primary text-primary" }}
+          >
+            {session ? (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                {initial}
+              </span>
+            ) : (
+              <User className="h-4 w-4" />
+            )}
+            <span className="hidden text-[10px] tracking-[0.2em] uppercase md:inline">
+              {session ? t("nav.account") : t("auth.signIn")}
+            </span>
+          </Link>
+
           <button
             onClick={() => setCartOpen(true)}
             aria-label={t("cta.cart")}
@@ -140,6 +177,27 @@ export default function Header() {
                 {t(item.key)}
               </Link>
             ))}
+            <div className="hairline my-3" />
+            <Link
+              to="/cuenta"
+              onClick={() => setOpen(false)}
+              className="press inline-flex items-center gap-2 py-2 text-sm tracking-[0.2em] uppercase"
+            >
+              <User className="h-4 w-4" />
+              {session ? t("nav.account") : t("auth.signIn")}
+            </Link>
+            {session && (
+              <button
+                onClick={() => {
+                  void supabase.auth.signOut();
+                  setOpen(false);
+                }}
+                className="press inline-flex items-center gap-2 py-2 text-left text-sm tracking-[0.2em] text-muted-foreground uppercase"
+              >
+                <LogOut className="h-4 w-4" />
+                {t("auth.signOut")}
+              </button>
+            )}
             <div className="hairline my-3" />
             <div className="flex gap-2 pb-2">
               {(["es", "en"] as const).map((l) => (
