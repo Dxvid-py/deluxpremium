@@ -149,8 +149,11 @@ export default function CollectionRevolution() {
       {/* Título gigante detrás de la pieza */}
       <h2
         key={`title-${tick}`}
-        className="pointer-events-none absolute z-20 w-full px-4 text-center font-display text-[clamp(2.1rem,9vw,7.5rem)] leading-none text-cream-hi"
-        style={{ transform: `translate3d(${pointer.x * 18}px, ${pointer.y * 10}px, 0)` }}
+        className="pointer-events-none absolute z-20 w-full px-8 text-center font-display leading-none text-cream-hi md:px-16"
+        style={{
+          fontSize: `clamp(1.75rem, ${Math.min(8.5, 116 / Math.max(title.length, 8))}vw, 7rem)`,
+          transform: `translate3d(${pointer.x * 18}px, ${pointer.y * 10}px, 0)`,
+        }}
       >
         <span className="sr-only">{title}</span>
         <span aria-hidden className="inline-flex flex-wrap justify-center">
