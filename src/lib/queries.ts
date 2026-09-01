@@ -178,8 +178,9 @@ export const settingsQuery = {
   queryFn: async (): Promise<Record<string, string>> => {
     const { data, error } = await supabase.from("site_settings").select("key,value");
     if (error) throw error;
+    const rows = (data ?? []) as unknown as { key: string; value: string }[];
     const map: Record<string, string> = {};
-    for (const row of data ?? []) map[row.key as string] = row.value as string;
+    for (const row of rows) map[row.key] = row.value;
     return map;
   },
 };
