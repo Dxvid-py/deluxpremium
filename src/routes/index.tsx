@@ -51,8 +51,11 @@ function Home() {
     <>
       <HeroAtelier />
 
+      <CollectionsShowcase />
+
       {/* Beneficios */}
       <section className="border-y border-border">
+
         <div
           className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:grid-cols-2 md:px-8 lg:grid-cols-4"
           data-stagger="110"
