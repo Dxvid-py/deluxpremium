@@ -49,7 +49,7 @@ function Home() {
 
   return (
     <>
-      <CollectionRevolution />
+      <HeroAtelier />
 
       {/* Beneficios */}
       <section className="border-y border-border">
@@ -160,6 +160,8 @@ function Home() {
           </div>
         </div>
       </section>
+
+      <CollectionsShowcase />
 
       <GallerySection />
       <InstagramSection />
