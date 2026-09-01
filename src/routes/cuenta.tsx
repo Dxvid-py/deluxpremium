@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, LogOut, MapPin, Plus, Star, Trash2 } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
+import type { Session } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -49,7 +49,9 @@ function Cuenta() {
       setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   if (!ready) {
@@ -299,7 +301,10 @@ function AddressesCard({ session }: { session: Session }) {
   const save = async () => {
     if (!draft?.address) return;
     const { error } = await supabase.from("customer_addresses").insert({ user_id: uid, ...draft });
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setDraft(null);
     toast.success(t("account.saved"));
     refresh();

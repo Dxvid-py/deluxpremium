@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, LogOut, Pencil, Plus, Trash2, X } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
+import type { Session } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import {
   categoriesQuery,
@@ -47,7 +47,9 @@ function Admin() {
       setReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

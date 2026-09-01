@@ -38,7 +38,7 @@ class Query implements PromiseLike<Result<Row[] | Row | null>> {
   private sorts: { key: string; asc: boolean }[] = [];
   private mode: "select" | "insert" | "update" | "delete" | "upsert" = "select";
   private payload: Row[] = [];
-  private single: false | "one" | "maybe" = false;
+  private singleMode: false | "one" | "maybe" = false;
 
   constructor(private table: TableName) {}
 
@@ -62,7 +62,11 @@ class Query implements PromiseLike<Result<Row[] | Row | null>> {
     return this;
   }
   maybeSingle() {
-    this.single = "maybe";
+    this.singleMode = "maybe";
+    return this;
+  }
+  single() {
+    this.singleMode = "one";
     return this;
   }
   insert(values: Row | Row[]) {
@@ -120,7 +124,7 @@ class Query implements PromiseLike<Result<Row[] | Row | null>> {
         }
       }
       persist();
-      return { data: this.single ? (created[0] ?? null) : created, error: null };
+      return { data: this.singleMode ? (created[0] ?? null) : created, error: null };
     }
 
     const selected = rows.filter((r) => matches(r, this.filters, this.ins));
@@ -129,7 +133,7 @@ class Query implements PromiseLike<Result<Row[] | Row | null>> {
       const patch = this.payload[0] ?? {};
       selected.forEach((r) => Object.assign(r, patch, { updated_at: now }));
       persist();
-      return { data: this.single ? (selected[0] ?? null) : selected, error: null };
+      return { data: this.singleMode ? (selected[0] ?? null) : selected, error: null };
     }
 
     if (this.mode === "delete") {
@@ -149,9 +153,9 @@ class Query implements PromiseLike<Result<Row[] | Row | null>> {
       return 0;
     });
 
-    if (this.single) {
+    if (this.singleMode) {
       const first = sorted[0] ?? null;
-      if (!first && this.single === "one") {
+      if (!first && this.singleMode === "one") {
         return { data: null, error: { message: "No se encontró el registro" } };
       }
       return { data: first, error: null };
@@ -171,15 +175,6 @@ class Query implements PromiseLike<Result<Row[] | Row | null>> {
   }
 }
 
-/** Igual que `Query` pero `single()` devuelve la fila creada/encontrada. */
-class SingleAwareQuery extends Query {
-  single() {
-    // @ts-expect-error acceso controlado a la propiedad privada del padre
-    this.single_ = true;
-    return this;
-  }
-}
-
 type Listener = (event: string, session: Session | null) => void;
 const listeners = new Set<Listener>();
 
@@ -195,7 +190,7 @@ function findUser(email: string) {
 
 export const supabase = {
   from(table: TableName) {
-    return new Query(table) as Query & { single: () => Query };
+    return new Query(table);
   },
   auth: {
     async getSession(): Promise<{ data: { session: Session | null } }> {
@@ -253,4 +248,15 @@ export const supabase = {
 };
 
 export type { Row };
-export { SingleAwareQuery };
+export const storage = {
+  from(_bucket: string) {
+    return {
+      async upload() {
+        return { error: { message: "El almacenamiento local usa imágenes en línea" } };
+      },
+      async createSignedUrl() {
+        return { data: null, error: { message: "no disponible" } };
+      },
+    };
+  },
+};
