@@ -21,7 +21,7 @@ export type TableName =
   | "user_roles"
   | "auth_users";
 
-const DB_KEY = "fdp-local-db-v1";
+const DB_KEY = "fdp-local-db-v3";
 const SESSION_KEY = "fdp-local-session-v1";
 
 export const ADMIN_EMAIL = "floristeriadeluxe@gmail.com";
@@ -47,44 +47,41 @@ function seed(): Record<TableName, Row[]> {
       {
         id: CAT.amor,
         name: "Amor & Romance",
+        name_en: "Love & Romance",
         slug: "amor",
         description: "Arreglos intensos para declarar lo que las palabras no alcanzan.",
+        description_en: "Intense arrangements to say what words cannot reach.",
         image_url: "/img/cat-amor.jpg",
         sort_order: 1,
         is_active: true,
         created_at: now,
       },
       {
-        id: CAT.cumpleanos,
-        name: "Cumpleaños",
-        slug: "cumpleanos",
-        description: "Color, luz y celebración en cada tallo seleccionado.",
-        image_url: "/img/cat-cumpleanos.jpg",
-        sort_order: 2,
-        is_active: true,
-        created_at: now,
-      },
-      {
         id: CAT.elegancia,
-        name: "Elegancia",
-        slug: "elegancia",
-        description: "Composiciones minimalistas de alta gama para espacios únicos.",
+        name: "Bodas & Eventos",
+        name_en: "Weddings & Events",
+        slug: "bodas",
+        description: "Escenografía floral de alta gama para el día que no se repite.",
+        description_en: "High-end floral scenography for the day that never repeats.",
         image_url: "/img/cat-elegancia.jpg",
-        sort_order: 3,
+        sort_order: 2,
         is_active: true,
         created_at: now,
       },
       {
         id: CAT.condolencias,
         name: "Condolencias",
+        name_en: "Condolences",
         slug: "condolencias",
         description: "Homenajes serenos y respetuosos, entregados con delicadeza.",
+        description_en: "Serene, respectful tributes, delivered with care.",
         image_url: "/img/cat-condolencias.jpg",
-        sort_order: 4,
-        is_active: false,
+        sort_order: 3,
+        is_active: true,
         created_at: now,
       },
     ],
+
     products: [
       {
         id: "p1000000-0000-4000-8000-000000000001",
@@ -146,7 +143,7 @@ function seed(): Record<TableName, Row[]> {
         price_cop: 465000,
         compare_price_cop: 520000,
         images: ["/img/prod-04.jpg"],
-        category_id: CAT.cumpleanos,
+        category_id: CAT.elegancia,
         is_featured: true,
         is_active: true,
         stock: 10,
@@ -179,7 +176,7 @@ function seed(): Record<TableName, Row[]> {
           "Nuestro ramo insignia: rosas rojas y rosadas en gran formato con envoltura editorial firmada por el atelier.",
         price_cop: 590000,
         compare_price_cop: 690000,
-        images: ["/img/prod-06.jpg", "/img/arreglo_amor6.jpeg"],
+        images: ["/img/prod-06.jpg", "/img/arreglo_amor2.jpeg"],
         category_id: CAT.amor,
         is_featured: true,
         is_active: true,
@@ -212,7 +209,7 @@ function seed(): Record<TableName, Row[]> {
         description: "Rosas jardín rosadas con velas y detalles dorados para una noche íntima.",
         price_cop: 298000,
         compare_price_cop: null,
-        images: ["/img/hero-03.jpg", "/img/arreglo_amor4.jpeg"],
+        images: ["/img/cat-amor.jpg", "/img/arreglo_amor1.jpeg"],
         category_id: CAT.amor,
         is_featured: false,
         is_active: true,
@@ -252,7 +249,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        image_url: "/img/arreglo_amor3.jpeg",
+        image_url: "/img/arreglo_amor1.jpeg",
         caption: "Sorpresa de cumpleaños",
         customer_name: "Andrés M.",
         sort_order: 2,
@@ -260,7 +257,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        image_url: "/img/arreglo_amor5.jpeg",
+        image_url: "/img/arreglo_amor2.jpeg",
         caption: "Pedida de mano",
         customer_name: "Laura & Juan",
         sort_order: 3,
@@ -268,7 +265,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        image_url: "/img/arreglo_amor7.jpeg",
+        image_url: "/img/cat-amor.jpg",
         caption: "Gracias por tanto",
         customer_name: "Familia Peña",
         sort_order: 4,
