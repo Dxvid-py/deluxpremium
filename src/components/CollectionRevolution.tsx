@@ -151,7 +151,7 @@ export default function CollectionRevolution() {
         key={`title-${tick}`}
         className="pointer-events-none absolute z-20 w-full px-8 text-center font-display leading-none text-cream-hi md:px-16"
         style={{
-          fontSize: `clamp(1.75rem, ${Math.min(8.5, 116 / Math.max(title.length, 8))}vw, 7rem)`,
+          fontSize: `clamp(1.75rem, ${Math.min(8.5, 90 / Math.max(title.length, 8))}vw, 7rem)`,
           transform: `translate3d(${pointer.x * 18}px, ${pointer.y * 10}px, 0)`,
         }}
       >
