@@ -64,6 +64,7 @@ const DICT: Dict = {
     en: "Refrigerated transport and signed Deluxe packaging.",
   },
 
+  "rev.seal": { es: "PRESIONA PARA DESCUBRIR", en: "PRESS TO DISCOVER" },
   "home.collections.eyebrow": { es: "Colecciones", en: "Collections" },
   "home.collections.title1": { es: "Tres maneras de", en: "Three ways to" },
   "home.collections.title2": { es: "decir algo", en: "say something" },

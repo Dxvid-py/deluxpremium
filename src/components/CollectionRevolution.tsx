@@ -103,7 +103,7 @@ export default function CollectionRevolution() {
       {slides.map((s, i) => (
         <div
           key={s.id}
-          className={`absolute inset-0 transition-opacity duration-1400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          className={`absolute inset-0 transition-opacity duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
             i === active ? "opacity-100" : "opacity-0"
           }`}
         >

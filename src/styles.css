@@ -41,6 +41,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-gold: var(--gold);
+  --color-cream-hi: var(--cream-hi);
   --color-gold-soft: var(--gold-soft);
   --color-blush: var(--blush);
   --color-rose: var(--rose);
@@ -70,6 +71,7 @@
    */
   --ink: oklch(0.24 0.022 330);
   --cream: oklch(0.26 0.022 330);
+  --cream-hi: oklch(0.98 0.012 84);
   --gold: oklch(0.63 0.105 76);
   --gold-soft: oklch(0.74 0.09 82);
   --blush: oklch(0.93 0.03 20);
@@ -551,10 +553,6 @@
 
 /* ---------- Escena "Revolution" de colecciones ---------- */
 
-.rev-stage {
-  --cream-hi: oklch(0.98 0.012 84);
-}
-
 .rev-veil {
   background:
     radial-gradient(ellipse 70% 60% at 50% 45%, oklch(0.12 0.02 330 / 0.25), oklch(0.1 0.02 330 / 0.78) 78%),
@@ -636,8 +634,6 @@
   border-color: oklch(0.86 0.1 84 / 0.75);
   transform: scale(1.08);
 }
-
-.text-cream-hi { color: var(--cream-hi, oklch(0.98 0.012 84)); }
 
 @media (prefers-reduced-motion: reduce) {
   .rev-bg,
