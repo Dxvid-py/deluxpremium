@@ -471,7 +471,9 @@ function ProductEditor({
 }) {
   const [form, setForm] = useState({
     name: product.name,
+    name_en: product.name_en ?? "",
     description: product.description ?? "",
+    description_en: product.description_en ?? "",
     price_cop: String(product.price_cop ?? ""),
     compare_price_cop: product.compare_price_cop ? String(product.compare_price_cop) : "",
     category_id: product.category_id ?? "",
@@ -494,8 +496,10 @@ function ProductEditor({
       .from("products")
       .update({
         name: form.name,
+        name_en: form.name_en,
         slug: slugify(form.name),
         description: form.description,
+        description_en: form.description_en,
         price_cop: Number(form.price_cop || 0),
         compare_price_cop: form.compare_price_cop ? Number(form.compare_price_cop) : null,
         category_id: form.category_id || null,
@@ -530,9 +534,15 @@ function ProductEditor({
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <input
             className={field}
-            placeholder="Nombre"
+            placeholder="Nombre (ES)"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <input
+            className={field}
+            placeholder="Name (EN) — opcional"
+            value={form.name_en}
+            onChange={(e) => setForm({ ...form, name_en: e.target.value })}
           />
           <select
             className={`${field} bg-card`}
@@ -570,9 +580,16 @@ function ProductEditor({
           <textarea
             className={`${field} md:col-span-2`}
             rows={4}
-            placeholder="Descripción"
+            placeholder="Descripción (ES)"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <textarea
+            className={`${field} md:col-span-2`}
+            rows={4}
+            placeholder="Description (EN) — opcional, si se deja vacío se traduce automáticamente"
+            value={form.description_en}
+            onChange={(e) => setForm({ ...form, description_en: e.target.value })}
           />
           <div className="space-y-3 md:col-span-2">
             {form.images.map((img, i) => (
@@ -814,6 +831,7 @@ function CategoriesPanel() {
   const qc = useQueryClient();
   const { data: categories } = useQuery(categoriesQuery);
   const [name, setName] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [image, setImage] = useState("/img/cat-amor.jpg");
 
   const refresh = () => qc.invalidateQueries({ queryKey: categoriesQuery.queryKey });
@@ -822,10 +840,11 @@ function CategoriesPanel() {
     if (!name) return;
     const { error } = await supabase
       .from("categories")
-      .insert({ name, slug: slugify(name), image_url: image });
+      .insert({ name, name_en: nameEn, slug: slugify(name), image_url: image });
     if (error) { toast.error(error.message); return; }
     toast.success("Colección creada");
     setName("");
+    setNameEn("");
     refresh();
   };
 
@@ -846,9 +865,15 @@ function CategoriesPanel() {
       <div className="flex flex-wrap gap-4 border border-border p-6">
         <input
           className={`${field} max-w-xs`}
-          placeholder="Nombre de la colección"
+          placeholder="Nombre de la colección (ES)"
           value={name}
           onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          className={`${field} max-w-xs`}
+          placeholder="Collection name (EN)"
+          value={nameEn}
+          onChange={(e) => setNameEn(e.target.value)}
         />
         <div className="w-full max-w-md">
           <ImageField value={image} folder="colecciones" onChange={setImage} />
@@ -874,6 +899,13 @@ function CategoriesPanel() {
               className="min-w-40 flex-1 border border-input bg-transparent px-3 py-2 text-sm"
               defaultValue={c.name}
               onBlur={(e) => patch(c.id, { name: e.target.value })}
+              placeholder="Nombre (ES)"
+            />
+            <input
+              className="min-w-40 flex-1 border border-input bg-transparent px-3 py-2 text-sm"
+              defaultValue={c.name_en ?? ""}
+              onBlur={(e) => patch(c.id, { name_en: e.target.value })}
+              placeholder="Name (EN)"
             />
             <input
               className="w-20 border border-input bg-transparent px-3 py-2 text-sm"
