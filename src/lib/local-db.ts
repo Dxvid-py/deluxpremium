@@ -21,7 +21,7 @@ export type TableName =
   | "user_roles"
   | "auth_users";
 
-const DB_KEY = "fdp-local-db-v1";
+const DB_KEY = "fdp-local-db-v3";
 const SESSION_KEY = "fdp-local-session-v1";
 
 export const ADMIN_EMAIL = "floristeriadeluxe@gmail.com";
@@ -143,7 +143,7 @@ function seed(): Record<TableName, Row[]> {
         price_cop: 465000,
         compare_price_cop: 520000,
         images: ["/img/prod-04.jpg"],
-        category_id: CAT.cumpleanos,
+        category_id: CAT.elegancia,
         is_featured: true,
         is_active: true,
         stock: 10,
@@ -176,7 +176,7 @@ function seed(): Record<TableName, Row[]> {
           "Nuestro ramo insignia: rosas rojas y rosadas en gran formato con envoltura editorial firmada por el atelier.",
         price_cop: 590000,
         compare_price_cop: 690000,
-        images: ["/img/prod-06.jpg", "/img/arreglo_amor6.jpeg"],
+        images: ["/img/prod-06.jpg", "/img/arreglo_amor2.jpeg"],
         category_id: CAT.amor,
         is_featured: true,
         is_active: true,
@@ -209,7 +209,7 @@ function seed(): Record<TableName, Row[]> {
         description: "Rosas jardín rosadas con velas y detalles dorados para una noche íntima.",
         price_cop: 298000,
         compare_price_cop: null,
-        images: ["/img/hero-03.jpg", "/img/arreglo_amor4.jpeg"],
+        images: ["/img/cat-amor.jpg", "/img/arreglo_amor1.jpeg"],
         category_id: CAT.amor,
         is_featured: false,
         is_active: true,
