@@ -721,14 +721,85 @@
   animation: heroGhost 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ---- Hero cinemático ---- */
+@keyframes heroKenA {
+  0% {
+    transform: scale(1.08) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.22) translate3d(-2.5%, -2%, 0);
+  }
+}
+@keyframes heroSheen {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateX(180%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+@keyframes heroDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+}
+@keyframes heroMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes heroBar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.hero-ken {
+  animation: heroKenA 14s cubic-bezier(0.33, 0, 0.2, 1) both;
+}
+.hero-sheen {
+  animation: heroSheen 6.5s cubic-bezier(0.16, 1, 0.3, 1) 1.2s infinite;
+}
+.hero-drift {
+  animation: heroDrift 9s ease-in-out infinite;
+}
+.hero-marquee {
+  animation: heroMarquee 38s linear infinite;
+}
+.hero-bar {
+  transform-origin: left;
+  animation: heroBar 7s linear both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-in,
   .hero-mask-in,
   .hero-rule,
   .hero-ghost,
-  .hero-progress {
+  .hero-progress,
+  .hero-ken,
+  .hero-sheen,
+  .hero-drift,
+  .hero-marquee,
+  .hero-bar {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
 }
+

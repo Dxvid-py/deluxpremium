@@ -164,7 +164,7 @@ function Home() {
         </div>
       </section>
 
-      <CollectionsShowcase />
+
 
       <GallerySection />
       <InstagramSection />
