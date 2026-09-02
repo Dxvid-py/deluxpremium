@@ -88,6 +88,28 @@ function Home() {
         </div>
       </section>
 
+      {/* Beneficios */}
+      <section className="border-y border-border">
+        <div
+          className="mx-auto grid max-w-7xl gap-8 px-5 py-14 sm:grid-cols-2 sm:gap-10 md:px-8 md:py-16 lg:grid-cols-4"
+          data-stagger="110"
+        >
+          {BENEFITS.map((b) => (
+            <div key={b.key} className="flex min-w-0 gap-4" data-anim="fade-up">
+              <b.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <h3 className="font-display text-lg">{t(`home.${b.key}.title`)}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {t(`home.${b.key}.copy`)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+
+
       {/* Editorial */}
       <section className="relative overflow-hidden border-t border-border">
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-24 md:grid-cols-2 md:px-8 md:py-32">
