@@ -53,26 +53,6 @@ function Home() {
 
       <CollectionsShowcase />
 
-      {/* Beneficios */}
-      <section className="border-y border-border">
-
-        <div
-          className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:grid-cols-2 md:px-8 lg:grid-cols-4"
-          data-stagger="110"
-        >
-          {BENEFITS.map((b) => (
-            <div key={b.key} className="flex gap-4" data-anim="fade-up">
-              <b.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div>
-                <h3 className="font-display text-lg">{t(`home.${b.key}.title`)}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  {t(`home.${b.key}.copy`)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* Destacados */}
       <section className="border-t border-border py-24 md:py-32">
