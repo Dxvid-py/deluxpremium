@@ -803,3 +803,13 @@
   }
 }
 
+/* ============ Superficie glass (barra de beneficios flotante) ============ */
+.surface-glass {
+  background: color-mix(in oklch, var(--card) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  box-shadow: 0 18px 40px -24px color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+
