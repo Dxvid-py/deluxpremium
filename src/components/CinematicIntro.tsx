@@ -189,25 +189,54 @@ export default function CinematicIntro() {
         </p>
       </div>
 
-      <audio ref={audioRef} src={introAudio.url} preload="auto" playsInline />
+      <audio ref={audioRef} src={introAudio.url} preload="auto" playsInline loop />
 
-      <button
-        onClick={() => {
-          setMuted((m) => {
-            const next = !m;
-            if (audioRef.current) {
-              audioRef.current.muted = next;
-              if (!next) void audioRef.current.play().catch(() => undefined);
-            }
-            return next;
-          });
-        }}
-        aria-label={t("cta.sound")}
-        className="press absolute bottom-6 left-6 inline-flex items-center gap-2 text-[10px] tracking-[0.3em] text-muted-foreground uppercase transition-colors hover:text-primary"
-      >
-        {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        {t("cta.sound")}
-      </button>
+      {/* Aviso para activar el sonido al primer gesto */}
+      {showUnlock && (
+        <button
+          onClick={() => {
+            const a = audioRef.current;
+            if (!a) return;
+            a.muted = false;
+            a.volume = 0;
+            void a.play().then(() => {
+              setMuted(false);
+              setShowUnlock(false);
+              const id = window.setInterval(() => {
+                if (!audioRef.current) return window.clearInterval(id);
+                const next = Math.min(0.55, audioRef.current.volume + 0.05);
+                audioRef.current.volume = next;
+                if (next >= 0.55) window.clearInterval(id);
+                return undefined;
+              }, 90);
+            }).catch(() => undefined);
+          }}
+          className="press absolute bottom-6 left-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-2 text-[10px] tracking-[0.3em] text-foreground uppercase backdrop-blur transition-colors hover:border-primary hover:text-primary"
+        >
+          <Volume2 className="h-4 w-4 animate-pulse" />
+          {t("cta.sound")}
+        </button>
+      )}
+
+      {!showUnlock && (
+        <button
+          onClick={() => {
+            setMuted((m) => {
+              const next = !m;
+              if (audioRef.current) {
+                audioRef.current.muted = next;
+                if (!next) void audioRef.current.play().catch(() => undefined);
+              }
+              return next;
+            });
+          }}
+          aria-label={t("cta.sound")}
+          className="press absolute bottom-6 left-6 inline-flex items-center gap-2 text-[10px] tracking-[0.3em] text-muted-foreground uppercase transition-colors hover:text-primary"
+        >
+          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          {t("cta.sound")}
+        </button>
+      )}
 
       <button
         onClick={close}
