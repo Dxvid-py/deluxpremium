@@ -15,49 +15,54 @@ export default function CinematicIntro() {
   const { t } = useI18n();
   const [stage, setStage] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [showUnlock, setShowUnlock] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Reproducción con desbloqueo: se intenta con sonido y, si el navegador lo
-  // impide, se reproduce en silencio hasta el primer gesto del visitante.
+  // Reproducción con desbloqueo: el navegador bloquea el sonido automático,
+  // pero SÍ permite el autoplay silenciado. Arrancamos en silencio y lo
+  // activamos al primer gesto del visitante (un clic/tap en cualquier parte
+  // o en el botón de sonido). Así el audio siempre se escucha cuando hay
+  // interacción, sin depender del formato del archivo.
   useEffect(() => {
     if (!mounted) return undefined;
     const el = audioRef.current;
     if (!el) return undefined;
-    el.volume = 0;
 
-    let cancelled = false;
+    // Arranca silenciado: autoplay permitido por la política del navegador.
+    el.muted = true;
+    el.volume = 0.55;
+    void el.play().then(() => setShowUnlock(true)).catch(() => {
+      // Si incluso silenciado bloquea, esperamos al primer gesto.
+      setShowUnlock(true);
+    });
+
     const fadeIn = () => {
       const id = window.setInterval(() => {
-        if (cancelled || !audioRef.current) return window.clearInterval(id);
+        if (!audioRef.current) return window.clearInterval(id);
         const next = Math.min(0.55, audioRef.current.volume + 0.05);
         audioRef.current.volume = next;
         if (next >= 0.55) window.clearInterval(id);
         return undefined;
-      }, 120);
-    };
-
-    const start = () => {
-      void el
-        .play()
-        .then(fadeIn)
-        .catch(() => {
-          el.muted = true;
-          void el.play().catch(() => undefined);
-        });
+      }, 90);
     };
 
     const unlock = () => {
-      el.muted = muted;
-      void el.play().then(fadeIn).catch(() => undefined);
+      const a = audioRef.current;
+      if (!a) return;
+      a.muted = false;
+      a.volume = 0;
+      void a.play().then(() => {
+        setMuted(false);
+        fadeIn();
+      }).catch(() => undefined);
+      setShowUnlock(false);
     };
 
-    start();
     window.addEventListener("pointerdown", unlock, { once: true });
     window.addEventListener("keydown", unlock, { once: true });
 
     return () => {
-      cancelled = true;
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
       el.pause();
