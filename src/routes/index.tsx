@@ -1,15 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Clock, Flower2, Gem, Truck } from "lucide-react";
-import HeroAtelier from "@/components/HeroAtelier";
-import CollectionsShowcase from "@/components/CollectionsShowcase";
+import HeroSlider from "@/components/HeroSlider";
+import CinematicCollectionsFilm from "@/components/CinematicCollectionsFilm";
 
 import ProductCard from "@/components/ProductCard";
 import GallerySection from "@/components/GallerySection";
 import InstagramSection from "@/components/InstagramSection";
-import { productsQuery } from "@/lib/queries";
+import { categoriesQuery, productsQuery } from "@/lib/queries";
 import { useParallax, useReveal } from "@/hooks/use-reveal";
-import { useI18n } from "@/lib/i18n";
+import { useContentTranslator, useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -45,14 +45,26 @@ function Home() {
   useParallax();
   const { t } = useI18n();
   const { data: products } = useQuery(productsQuery);
+  const { data: categories } = useQuery(categoriesQuery);
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
+  const activeCategories = (categories ?? []).filter((c) => c.is_active);
+  const tc = useContentTranslator(
+    activeCategories.flatMap((c) => [c.name, c.description]),
+  );
 
   return (
     <>
-      <HeroAtelier />
+      <HeroSlider />
 
-      <CollectionsShowcase />
-
+      {/* Colecciones: película controlada por scroll (ver CinematicCollectionsFilm) */}
+      <CinematicCollectionsFilm
+        categories={activeCategories}
+        translate={tc}
+        eyebrow={t("home.collections.eyebrow")}
+        title1={t("home.collections.title1")}
+        title2={t("home.collections.title2")}
+        ctaLabel={t("cta.viewCollection")}
+      />
 
       {/* Destacados */}
       <section className="border-t border-border py-24 md:py-32">
@@ -107,8 +119,6 @@ function Home() {
           ))}
         </div>
       </section>
-
-
 
       {/* Editorial */}
       <section className="relative overflow-hidden border-t border-border">
@@ -165,8 +175,6 @@ function Home() {
           </div>
         </div>
       </section>
-
-
 
       <GallerySection />
       <InstagramSection />
