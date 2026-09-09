@@ -2,9 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Clock, Flower2, Gem, Truck } from "lucide-react";
 import HeroSlider from "@/components/HeroSlider";
-import CinematicCollectionsFilm from "@/components/CinematicCollectionsFilm";
-
 import ProductCard from "@/components/ProductCard";
+import CinematicCollectionsFilm from "@/components/CinematicCollectionsFilm";
 import GallerySection from "@/components/GallerySection";
 import InstagramSection from "@/components/InstagramSection";
 import { categoriesQuery, productsQuery } from "@/lib/queries";
@@ -44,21 +43,39 @@ function Home() {
   useReveal();
   useParallax();
   const { t } = useI18n();
-  const { data: products } = useQuery(productsQuery);
   const { data: categories } = useQuery(categoriesQuery);
+  const { data: products } = useQuery(productsQuery);
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
-  const activeCategories = (categories ?? []).filter((c) => c.is_active);
-  const tc = useContentTranslator(
-    activeCategories.flatMap((c) => [c.name, c.description]),
-  );
+  const collections = (categories ?? []).filter((c) => c.is_active).slice(0, 3);
+  const tc = useContentTranslator(collections.flatMap((c) => [c.name, c.description]));
 
   return (
     <>
       <HeroSlider />
 
+      {/* Beneficios */}
+      <section className="border-y border-border">
+        <div
+          className="mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:grid-cols-2 md:px-8 lg:grid-cols-4"
+          data-stagger="110"
+        >
+          {BENEFITS.map((b) => (
+            <div key={b.key} className="flex gap-4" data-anim="fade-up">
+              <b.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <h3 className="font-display text-lg">{t(`home.${b.key}.title`)}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {t(`home.${b.key}.copy`)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Colecciones: película controlada por scroll (ver CinematicCollectionsFilm) */}
       <CinematicCollectionsFilm
-        categories={activeCategories}
+        categories={collections}
         translate={tc}
         eyebrow={t("home.collections.eyebrow")}
         title1={t("home.collections.title1")}
@@ -97,26 +114,6 @@ function Home() {
               <ProductCard key={p.id} product={p} index={i} />
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Beneficios */}
-      <section className="border-y border-border">
-        <div
-          className="mx-auto grid max-w-7xl gap-8 px-5 py-14 sm:grid-cols-2 sm:gap-10 md:px-8 md:py-16 lg:grid-cols-4"
-          data-stagger="110"
-        >
-          {BENEFITS.map((b) => (
-            <div key={b.key} className="flex min-w-0 gap-4" data-anim="fade-up">
-              <b.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0">
-                <h3 className="font-display text-lg">{t(`home.${b.key}.title`)}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  {t(`home.${b.key}.copy`)}
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
       </section>
 
