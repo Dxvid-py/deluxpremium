@@ -1,14 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Clock, Flower2, Gem, Truck } from "lucide-react";
-import HeroSlider from "@/components/HeroSlider";
+import HeroVideo from "@/components/HeroVideo";
 import ProductCard from "@/components/ProductCard";
-import CinematicCollectionsFilm from "@/components/CinematicCollectionsFilm";
 import GallerySection from "@/components/GallerySection";
 import InstagramSection from "@/components/InstagramSection";
 import { categoriesQuery, productsQuery } from "@/lib/queries";
 import { useParallax, useReveal } from "@/hooks/use-reveal";
 import { useContentTranslator, useI18n } from "@/lib/i18n";
+import { usePetalBurst } from "@/lib/petal-burst";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,15 +43,25 @@ function Home() {
   useReveal();
   useParallax();
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const { burst } = usePetalBurst();
   const { data: categories } = useQuery(categoriesQuery);
   const { data: products } = useQuery(productsQuery);
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
   const collections = (categories ?? []).filter((c) => c.is_active).slice(0, 3);
   const tc = useContentTranslator(collections.flatMap((c) => [c.name, c.description]));
 
+  const onCollectionClick = (e: React.MouseEvent<HTMLAnchorElement>, slug: string) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    burst(e.clientX, e.clientY, () => {
+      navigate({ to: "/coleccion/$slug", params: { slug } });
+    });
+  };
+
   return (
     <>
-      <HeroSlider />
+      <HeroVideo />
 
       {/* Beneficios */}
       <section className="border-y border-border">
@@ -73,15 +83,59 @@ function Home() {
         </div>
       </section>
 
-      {/* Colecciones: película controlada por scroll (ver CinematicCollectionsFilm) */}
-      <CinematicCollectionsFilm
-        categories={collections}
-        translate={tc}
-        eyebrow={t("home.collections.eyebrow")}
-        title1={t("home.collections.title1")}
-        title2={t("home.collections.title2")}
-        ctaLabel={t("cta.viewCollection")}
-      />
+      {/* Colecciones: grilla limpia, con el mismo anillo de pétalos que
+          los productos al hacer clic (ver src/lib/petal-burst.tsx) */}
+      <section className="relative overflow-hidden py-24 md:py-32">
+        <div className="diffused-light absolute inset-0" />
+        <div className="relative mx-auto max-w-7xl px-5 md:px-8">
+          <div className="max-w-xl">
+            <p className="eyebrow" data-anim="left">
+              {t("home.collections.eyebrow")}
+            </p>
+            <h2 className="mt-4 font-display text-4xl leading-tight md:text-5xl" data-anim="letters">
+              {t("home.collections.title1")}{" "}
+              <span className="text-lux-gradient italic">{t("home.collections.title2")}</span>
+            </h2>
+          </div>
+
+          <div
+            className="mt-12 grid grid-cols-2 gap-4 sm:gap-7 md:mt-14 lg:grid-cols-3"
+            data-stagger="130"
+          >
+            {collections.map((c) => (
+              <Link
+                key={c.id}
+                to="/coleccion/$slug"
+                params={{ slug: c.slug }}
+                onClick={(e) => onCollectionClick(e, c.slug)}
+                data-anim="tilt"
+                className="aura-glow press group relative block rounded-sm"
+              >
+                <span className="relative z-1 block overflow-hidden rounded-sm">
+                  <img
+                    src={c.image_url}
+                    alt={c.name}
+                    loading="lazy"
+                    width={900}
+                    height={1200}
+                    className="aspect-3/4 w-full object-cover transition-transform duration-1200 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+                  />
+                  <span className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-transparent" />
+                  <span className="absolute inset-x-0 bottom-0 p-4 sm:p-6">
+                    <span className="font-display text-lg text-cream sm:text-2xl">{tc(c.name)}</span>
+                    <span className="mt-1.5 line-clamp-3 block text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                      {tc(c.description)}
+                    </span>
+                    <span className="mt-3 inline-flex items-center gap-2 text-[9px] tracking-[0.24em] text-primary uppercase transition-transform duration-500 group-hover:translate-x-1 sm:mt-4 sm:text-[10px]">
+                      {t("cta.viewCollection")} <ArrowUpRight className="h-3 w-3" />
+                    </span>
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Destacados */}
       <section className="border-t border-border py-24 md:py-32">

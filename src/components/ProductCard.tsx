@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ShoppingBag } from "lucide-react";
@@ -7,6 +7,7 @@ import { settingsQuery } from "@/lib/queries";
 import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { useContentTranslator, useI18n } from "@/lib/i18n";
+import { usePetalBurst } from "@/lib/petal-burst";
 
 export default function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
   const { add, currency } = useStore();
@@ -15,11 +16,24 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
   const { data: settings } = useQuery(settingsQuery);
   const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
   const [added, setAdded] = useState(false);
+  const { burst } = usePetalBurst();
+  const navigate = useNavigate();
 
   const onAdd = () => {
     add(product);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 600);
+  };
+
+  // Deja pasar clics con modificador (abrir en pestaña nueva, etc.) sin
+  // tocarlos; solo el clic normal dispara el anillo de pétalos antes de
+  // navegar, para que la transición se sienta parte de la marca.
+  const onProductClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    burst(e.clientX, e.clientY, () => {
+      navigate({ to: "/producto/$slug", params: { slug: product.slug } });
+    });
   };
 
   return (
@@ -31,6 +45,7 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
       <Link
         to="/producto/$slug"
         params={{ slug: product.slug }}
+        onClick={onProductClick}
         className="aura-glow press block rounded-sm bg-secondary"
       >
         <div className="relative z-1 aspect-4/5 overflow-hidden rounded-sm">
@@ -51,7 +66,7 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
 
       <div className="flex items-start justify-between gap-2 px-1 pt-4 sm:gap-4 sm:pt-5">
         <div className="min-w-0">
-          <Link to="/producto/$slug" params={{ slug: product.slug }}>
+          <Link to="/producto/$slug" params={{ slug: product.slug }} onClick={onProductClick}>
             <h3 className="font-display text-base leading-tight transition-colors group-hover:text-primary sm:text-xl">
               {tc(product.name)}
             </h3>
