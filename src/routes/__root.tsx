@@ -18,6 +18,7 @@ import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import CinematicIntro from "@/components/CinematicIntro";
 import { LanguageProvider } from "@/lib/i18n";
+import { PetalBurstProvider } from "@/lib/petal-burst";
 import { useScrollProgress } from "@/hooks/use-reveal";
 
 function NotFoundComponent() {
@@ -135,16 +136,18 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <StoreProvider>
-          <ScrollProgress />
-          <CinematicIntro />
-          <Header />
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <main>
-            <Outlet />
-          </main>
-          <Footer />
-          <CartDrawer />
-          <Toaster position="bottom-center" />
+          <PetalBurstProvider>
+            <ScrollProgress />
+            <CinematicIntro />
+            <Header />
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <main>
+              <Outlet />
+            </main>
+            <Footer />
+            <CartDrawer />
+            <Toaster position="bottom-center" />
+          </PetalBurstProvider>
         </StoreProvider>
       </LanguageProvider>
     </QueryClientProvider>
