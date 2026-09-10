@@ -10,25 +10,25 @@ import {
 } from "react";
 import gsap from "gsap";
 
+// Pétalos fotográficos reales (rosa, peonía marfil y rosa intenso).
 const PETAL_IMAGES = [
-  "/petals/petal-01.png",
-  "/petals/petal-02.png",
-  "/petals/petal-03.png",
-  "/petals/petal-04.png",
-  "/petals/petal-05.png",
+  "/petals/real-01.png",
+  "/petals/real-02.png",
+  "/petals/real-03.png",
 ];
 
 type PetalSpec = {
   id: number;
   img: string;
   size: number;
-  ringAngleDeg: number;
-  ringRadius: number;
-  disperseRadius: number;
+  /** Destino final dentro del viewport, en coordenadas relativas al clic. */
+  tx: number;
+  ty: number;
   rotStart: number;
-  rotRing: number;
-  rotDisperse: number;
+  rotMid: number;
+  rotEnd: number;
   delay: number;
+  driftY: number;
 };
 
 type Burst = {
@@ -40,10 +40,9 @@ type Burst = {
 };
 
 type PetalBurstContextValue = {
-  /** Dispara el anillo de pétalos desde (x, y) en coordenadas de viewport.
-   * `onMidpoint` se llama justo cuando el anillo termina de formarse y
-   * empieza a dispersarse — el momento ideal para navegar, porque los
-   * pétalos siguen flotando sobre la página nueva. */
+  /** Dispara la transición de pétalos a pantalla completa desde (x, y) en
+   * coordenadas de viewport. `onMidpoint` se llama cuando los pétalos ya
+   * cubren toda la pantalla — el momento ideal para navegar. */
   burst: (x: number, y: number, onMidpoint?: () => void) => void;
 };
 
@@ -58,22 +57,32 @@ export function usePetalBurst() {
 let burstIdSeq = 0;
 let petalIdSeq = 0;
 
-function buildPetals(count: number): PetalSpec[] {
+function buildPetals(count: number, cx: number, cy: number): PetalSpec[] {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const petals: PetalSpec[] = [];
   for (let i = 0; i < count; i++) {
-    const base = (360 / count) * i;
-    const ringAngleDeg = base + gsap.utils.random(-14, 14);
+    // Distribución en cuadrícula con jitter para cubrir todo el viewport
+    // de forma uniforme, sin huecos visibles.
+    const cols = Math.ceil(Math.sqrt(count * (vw / Math.max(vh, 1))));
+    const rows = Math.ceil(count / cols);
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cellW = vw / cols;
+    const cellH = vh / rows;
+    const targetX = col * cellW + cellW * gsap.utils.random(0.15, 0.85);
+    const targetY = row * cellH + cellH * gsap.utils.random(0.15, 0.85);
     petals.push({
       id: petalIdSeq++,
-      img: PETAL_IMAGES[Math.floor(gsap.utils.random(0, PETAL_IMAGES.length - 0.01))] ?? "/petals/petal-01.png",
-      size: gsap.utils.random(22, 50),
-      ringAngleDeg,
-      ringRadius: gsap.utils.random(70, 118),
-      disperseRadius: gsap.utils.random(230, 380),
-      rotStart: gsap.utils.random(-30, 30),
-      rotRing: gsap.utils.random(-70, 70),
-      rotDisperse: gsap.utils.random(-160, 160),
-      delay: gsap.utils.random(0, 0.16),
+      img: PETAL_IMAGES[Math.floor(gsap.utils.random(0, PETAL_IMAGES.length - 0.01))] ?? "/petals/real-01.png",
+      size: gsap.utils.random(90, 220),
+      tx: targetX - cx,
+      ty: targetY - cy,
+      rotStart: gsap.utils.random(-180, 180),
+      rotMid: gsap.utils.random(-90, 90),
+      rotEnd: gsap.utils.random(-200, 200),
+      delay: gsap.utils.random(0, 0.35),
+      driftY: gsap.utils.random(vh * 0.4, vh * 0.9),
     });
   }
   return petals;
@@ -81,6 +90,7 @@ function buildPetals(count: number): PetalSpec[] {
 
 function BurstView({ data, onDone }: { data: Burst; onDone: (id: number) => void }) {
   const nodeRefs = useRef<(HTMLImageElement | null)[]>([]);
+  const veilRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
@@ -88,65 +98,78 @@ function BurstView({ data, onDone }: { data: Burst; onDone: (id: number) => void
         onComplete: () => onDone(data.id),
       });
 
+      // Velo marfil bajo los pétalos: garantiza cobertura total aunque
+      // queden pequeños huecos entre pétalos.
+      if (veilRef.current) {
+        gsap.set(veilRef.current, { opacity: 0 });
+        tl.to(veilRef.current, { opacity: 1, duration: 0.7, ease: "power2.inOut" }, 0.25);
+      }
+
       data.petals.forEach((p, i) => {
         const el = nodeRefs.current[i];
         if (!el) return;
-        const ringX = Math.cos((p.ringAngleDeg * Math.PI) / 180) * p.ringRadius;
-        const ringY = Math.sin((p.ringAngleDeg * Math.PI) / 180) * p.ringRadius;
-        const disperseX = Math.cos((p.ringAngleDeg * Math.PI) / 180) * p.disperseRadius;
-        const disperseY = Math.sin((p.ringAngleDeg * Math.PI) / 180) * p.disperseRadius;
 
-        gsap.set(el, { x: 0, y: 0, scale: 0, opacity: 0, rotate: p.rotStart });
+        gsap.set(el, {
+          x: 0,
+          y: 0,
+          scale: 0,
+          opacity: 0,
+          rotate: p.rotStart,
+        });
 
-        // Fase 1: los pétalos vuelan desde el punto de clic y se acomodan
-        // formando un anillo/halo alrededor de él.
+        // Fase 1: los pétalos brotan del punto de clic y vuelan hacia su
+        // posición, creciendo hasta cubrir la pantalla completa.
         tl.to(
           el,
           {
-            x: ringX,
-            y: ringY,
+            x: p.tx,
+            y: p.ty,
             scale: 1,
             opacity: 1,
-            rotate: p.rotRing,
-            duration: 0.55,
-            ease: "back.out(1.6)",
+            rotate: p.rotMid,
+            duration: 0.85,
+            ease: "power3.out",
             delay: p.delay,
           },
           0,
         );
 
-        // Fase 2: mientras el anillo está formado, un pequeño flote (yoyo)
-        // para que se sienta vivo, no estático.
+        // Fase 2: flotación breve mientras la pantalla está cubierta.
         tl.to(
           el,
           {
-            y: `+=${gsap.utils.random(-8, 8)}`,
-            rotate: `+=${gsap.utils.random(-8, 8)}`,
-            duration: 0.32,
+            y: `+=${gsap.utils.random(-14, 14)}`,
+            rotate: `+=${gsap.utils.random(-12, 12)}`,
+            scale: "+=0.12",
+            duration: 0.4,
             ease: "sine.inOut",
           },
-          0.55 + p.delay,
+          0.85 + p.delay,
         );
 
-        // Fase 3: se dispersan hacia afuera y se desvanecen, como flotando
-        // lejos — este es el momento en que ya se navegó a la página nueva.
+        // Fase 3: caen con gravedad y se desvanecen, revelando la página
+        // nueva que ya cargó debajo.
         tl.to(
           el,
           {
-            x: disperseX,
-            y: disperseY,
+            y: `+=${p.driftY}`,
+            x: `+=${gsap.utils.random(-120, 120)}`,
             opacity: 0,
-            scale: gsap.utils.random(0.5, 0.8),
-            rotate: p.rotDisperse,
-            duration: 0.75,
+            rotate: p.rotEnd,
+            duration: 1.1,
             ease: "power2.in",
           },
-          0.92 + p.delay * 0.4,
+          1.35 + p.delay * 0.5,
         );
       });
 
-      // Llama a onMidpoint justo cuando arranca la fase de dispersión.
-      tl.call(() => data.onMidpoint?.(), undefined, 0.9);
+      // El velo se va junto con la caída de los pétalos.
+      if (veilRef.current) {
+        tl.to(veilRef.current, { opacity: 0, duration: 0.9, ease: "power2.inOut" }, 1.55);
+      }
+
+      // Navegar cuando la cobertura es total.
+      tl.call(() => data.onMidpoint?.(), undefined, 1.1);
     });
 
     return () => ctx.revert();
@@ -154,25 +177,27 @@ function BurstView({ data, onDone }: { data: Burst; onDone: (id: number) => void
   }, []);
 
   return (
-    <div
-      className="pointer-events-none fixed z-[999]"
-      style={{ left: data.x, top: data.y, width: 0, height: 0 }}
-      aria-hidden="true"
-    >
-      {data.petals.map((p, i) => (
-        <img
-          key={p.id}
-          ref={(el) => {
-            nodeRefs.current[i] = el;
-          }}
-          src={p.img}
-          alt=""
-          width={p.size}
-          height={p.size}
-          className="absolute top-0 left-0 will-change-transform"
-          style={{ width: p.size, height: p.size, marginLeft: -p.size / 2, marginTop: -p.size / 2 }}
-        />
-      ))}
+    <div className="pointer-events-none fixed inset-0 z-[999]" aria-hidden="true">
+      <div
+        ref={veilRef}
+        className="absolute inset-0 bg-background opacity-0"
+      />
+      <div className="absolute" style={{ left: data.x, top: data.y, width: 0, height: 0 }}>
+        {data.petals.map((p, i) => (
+          <img
+            key={p.id}
+            ref={(el) => {
+              nodeRefs.current[i] = el;
+            }}
+            src={p.img}
+            alt=""
+            width={p.size}
+            height={p.size}
+            className="absolute top-0 left-0 will-change-transform"
+            style={{ width: p.size, height: p.size, marginLeft: -p.size / 2, marginTop: -p.size / 2 }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -180,8 +205,7 @@ function BurstView({ data, onDone }: { data: Burst; onDone: (id: number) => void
 export function PetalBurstProvider({ children }: { children: ReactNode }) {
   const [bursts, setBursts] = useState<Burst[]>([]);
 
-  // Precarga silenciosa de los pétalos (normalmente ya están en cache por
-  // el intro/hero, pero por si acaso).
+  // Precarga silenciosa de los pétalos reales.
   useLayoutEffect(() => {
     PETAL_IMAGES.forEach((src) => {
       const im = new Image();
@@ -195,13 +219,13 @@ export function PetalBurstProvider({ children }: { children: ReactNode }) {
       onMidpoint?.();
       return;
     }
-    const count = window.innerWidth < 640 ? 18 : 30;
+    const count = window.innerWidth < 640 ? 46 : 78;
     const id = burstIdSeq++;
     const newBurst: Burst = {
       id,
       x,
       y,
-      petals: buildPetals(count),
+      petals: buildPetals(count, x, y),
       ...(onMidpoint ? { onMidpoint } : {}),
     };
     setBursts((prev) => [...prev, newBurst]);
