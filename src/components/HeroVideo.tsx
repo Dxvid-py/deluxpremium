@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -9,23 +10,104 @@ import desktopVideo from "@/assets/video/hero-desktop.mp4.asset.json";
  * - Móvil  → hero-mobile.mp4  (1080×1440, vertical)
  * - Escritorio → hero-desktop.mp4 (1920×1080, horizontal)
  *
- * Así en celular no se ve "mocho": el video vertical cubre toda la
- * pantalla sin recortes. Se elige la fuente con `useIsMobile` y se
- * evita cargar el video pesado de escritorio en datos móviles.
+ * El video se reproduce lento (0.6×) y en bucle "ping-pong":
+ * avanza hasta el final, retrocede hasta el principio, avanza de
+ * nuevo… así el loop nunca se ve cortado. Se usa `playbackRate`
+ * negativo (soportado en Chrome/Safari/Firefox) para el retroceso
+ * fluido; si el navegador no lo soporta, se hace scrub manual.
  */
+const PLAY_RATE = 0.6;
+
 export default function HeroVideo() {
   const isMobile = useIsMobile();
   const src = isMobile ? mobileVideo.url : desktopVideo.url;
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    let dir = 1; // 1 = adelante, -1 = atrás
+    let rafId = 0;
+    let last = 0;
+    let manual = false;
+
+    const setRate = () => {
+      const target = PLAY_RATE * dir;
+      try {
+        v.playbackRate = target;
+      } catch {
+        /* noop */
+      }
+      // Si el navegador rechazó el valor negativo, caemos a scrub manual
+      if (dir === -1 && v.playbackRate >= 0) {
+        manual = true;
+        v.pause();
+      } else {
+        manual = false;
+        if (v.paused) v.play().catch(() => {});
+      }
+    };
+
+    const onTick = (now: number) => {
+      rafId = 0;
+      if (!manual) return;
+      const dt = last ? (now - last) / 1000 : 0;
+      last = now;
+      v.currentTime = Math.max(0, v.currentTime - PLAY_RATE * dt);
+      if (v.currentTime <= 0.02) {
+        dir = 1;
+        manual = false;
+        last = 0;
+        v.playbackRate = PLAY_RATE;
+        v.play().catch(() => {});
+        return;
+      }
+      rafId = requestAnimationFrame(onTick);
+    };
+
+    const onTime = () => {
+      if (manual) return;
+      const d = v.duration;
+      if (!Number.isFinite(d) || d <= 0) return;
+      if (dir === 1 && v.currentTime >= d - 0.08) {
+        dir = -1;
+        last = 0;
+        setRate();
+        if (manual) {
+          rafId = requestAnimationFrame(onTick);
+        }
+      } else if (dir === -1 && v.currentTime <= 0.08) {
+        dir = 1;
+        v.playbackRate = PLAY_RATE;
+        if (v.paused) v.play().catch(() => {});
+      }
+    };
+
+    const onLoaded = () => {
+      v.playbackRate = PLAY_RATE;
+      v.play().catch(() => {});
+    };
+
+    v.addEventListener("loadedmetadata", onLoaded);
+    v.addEventListener("timeupdate", onTime);
+
+    return () => {
+      v.removeEventListener("loadedmetadata", onLoaded);
+      v.removeEventListener("timeupdate", onTime);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [src]);
 
   return (
     <section className="relative h-[100svh] min-h-[620px] overflow-hidden bg-[oklch(0.1_0.01_330)]">
       <video
         key={src}
+        ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover"
         src={src}
         poster="/video/hero-poster.jpg"
         autoPlay
-        loop
         muted
         playsInline
         preload="auto"
