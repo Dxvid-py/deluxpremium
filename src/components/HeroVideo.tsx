@@ -1,35 +1,35 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import mobileVideo from "@/assets/video/hero-mobile.mp4.asset.json";
+import desktopVideo from "@/assets/video/hero-desktop.mp4.asset.json";
 
 /**
- * Hero de video.
+ * Hero de video con fuente distinta por dispositivo:
+ * - Móvil  → hero-mobile.mp4  (1080×1440, vertical)
+ * - Escritorio → hero-desktop.mp4 (1920×1080, horizontal)
  *
- * OJO DE DISEÑO: el video ya trae tu logo/wordmark quemado en el centro-
- * izquierda del cuadro. Por eso el texto (kicker + CTA) va abajo, en la
- * franja oscura que queda libre, en vez de superponerse al logo como
- * hacía el HeroSlider anterior con sus 4 escenas de texto rotando.
- *
- * El archivo `hero-loop.mp4/webm` ya es un "boomerang" (adelante + atrás,
- * sin salto en el punto de giro) generado a partir de tu video original,
- * así que basta con loop=true normal — el navegador solo repite el
- * archivo, que ya contiene la ida y la vuelta.
+ * Así en celular no se ve "mocho": el video vertical cubre toda la
+ * pantalla sin recortes. Se elige la fuente con `useIsMobile` y se
+ * evita cargar el video pesado de escritorio en datos móviles.
  */
 export default function HeroVideo() {
+  const isMobile = useIsMobile();
+  const src = isMobile ? mobileVideo.url : desktopVideo.url;
+
   return (
     <section className="relative h-[100svh] min-h-[620px] overflow-hidden bg-[oklch(0.1_0.01_330)]">
       <video
+        key={src}
         className="absolute inset-0 h-full w-full object-cover"
-        src="/video/hero-loop.mp4"
+        src={src}
         poster="/video/hero-poster.jpg"
         autoPlay
         loop
         muted
         playsInline
         preload="auto"
-      >
-        <source src="/video/hero-loop.webm" type="video/webm" />
-        <source src="/video/hero-loop.mp4" type="video/mp4" />
-      </video>
+      />
 
       {/* Leve viñeta inferior para que el texto siempre sea legible,
           sin tapar el logo ni el arreglo floral. */}

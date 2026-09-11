@@ -194,7 +194,15 @@ function BurstView({ data, onDone }: { data: Burst; onDone: (id: number) => void
             width={p.size}
             height={p.size}
             className="absolute top-0 left-0 will-change-transform"
-            style={{ width: p.size, height: p.size, marginLeft: -p.size / 2, marginTop: -p.size / 2 }}
+            // maxWidth:none evita que el preflight `img{max-width:100%}`
+            // achique el pétalo a 0 (el contenedor padre mide 0×0).
+            style={{
+              width: p.size,
+              height: p.size,
+              maxWidth: "none",
+              marginLeft: -p.size / 2,
+              marginTop: -p.size / 2,
+            }}
           />
         ))}
       </div>
