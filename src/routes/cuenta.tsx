@@ -14,7 +14,7 @@ import { useReveal } from "@/hooks/use-reveal";
 export const Route = createFileRoute("/cuenta")({
   head: () => ({
     meta: [
-      { title: "Mi cuenta · Floristería Deluxe Premium" },
+      { title: "Mi cuenta · Floristería Deluxury" },
       {
         name: "description",
         content:
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/cuenta")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:title", content: "Mi cuenta · Deluxe Premium" },
+      { property: "og:title", content: "Mi cuenta · Deluxury" },
       {
         property: "og:description",
         content: "Tus datos, direcciones guardadas e historial de compras del atelier.",
@@ -125,7 +125,7 @@ function AuthCard() {
   return (
     <div className="flex min-h-screen items-center justify-center px-5 pt-28 pb-20">
       <form onSubmit={submit} className="w-full max-w-md border border-border p-8 md:p-10">
-        <p className="eyebrow">Deluxe Premium</p>
+        <p className="eyebrow">Deluxury</p>
         <h1 className="mt-3 font-display text-3xl">
           {mode === "in" ? t("auth.signIn") : t("auth.signUp")}
         </h1>
