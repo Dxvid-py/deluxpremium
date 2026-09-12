@@ -10,13 +10,13 @@ import { useStore } from "@/lib/store";
 export const Route = createFileRoute("/checkout")({
   head: () => ({
     meta: [
-      { title: "Finalizar pedido · Floristería Deluxe Premium" },
+      { title: "Finalizar pedido · Floristería Deluxury" },
       {
         name: "description",
         content:
           "Completa los datos de entrega y confirma tu pedido de flores premium por WhatsApp.",
       },
-      { property: "og:title", content: "Finalizar pedido · Deluxe Premium" },
+      { property: "og:title", content: "Finalizar pedido · Deluxury" },
       {
         property: "og:description",
         content: "Datos de entrega, dedicatoria y confirmación por WhatsApp.",
@@ -103,7 +103,7 @@ function Checkout() {
 
     const orderNumber = (data as { order_number: string } | null)?.order_number ?? "";
     const message = [
-      `*Nuevo pedido ${orderNumber}* — Floristería Deluxe Premium`,
+      `*Nuevo pedido ${orderNumber}* — Floristería Deluxury`,
       "",
       ...lines.map((l) => `• ${l.qty} × ${l.name} — ${formatMoney(l.price_cop * l.qty, "COP", trm)}`),
       "",
