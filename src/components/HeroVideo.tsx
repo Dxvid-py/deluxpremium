@@ -9,106 +9,146 @@ const MOBILE: Sources = {
   forward: "/video/hero-mobile.mp4",
   reverse: "/video/hero-mobile-reverse.mp4",
 };
+
 const DESKTOP: Sources = {
   forward: "/video/hero-desktop.mp4",
   reverse: "/video/hero-desktop-reverse.mp4",
 };
 
 /**
- * Hero de video en loop "boomerang" (avanza y luego retrocede) de verdad
- * fluido. Probamos primero a retroceder el mismo clip pisando
- * `currentTime` cuadro a cuadro con requestAnimationFrame, pero en la
- * práctica cada seek hacia atrás obliga al navegador a redecodificar desde
- * el fotograma clave anterior, y con GOPs largos eso se traduce en
- * cuelgues/tirones reales (lo que se veía: el video se congelaba al llegar
- * al final).
+ * Hero de video en loop "boomerang":
  *
- * La solución fiable: generamos un segundo archivo con los mismos
- * fotogramas *ya invertidos* (`ffmpeg -vf reverse`, ver
- * public/video/hero-*-reverse.mp4) y alternamos entre los dos videos
- * — cada uno se reproduce siempre hacia adelante, que es lo único que
- * todos los navegadores decodifican sin tirones. El cambio entre uno y
- * otro ocurre justo cuando comparten el mismo fotograma (el último de uno
- * es el primero del otro), con un crossfade de 120ms como colchón extra
- * por si el primer fotograma tarda un instante en pintar.
+ *   forward → reverse → forward → reverse → ...
+ *
+ * HTMLVideoElement no tiene un reverse playback fiable entre navegadores.
+ * Por eso el reverse es un segundo MP4 cuyos fotogramas ya están invertidos.
+ * Ambos vídeos se reproducen siempre hacia delante, evitando los saltos que
+ * aparecen al modificar currentTime cuadro a cuadro.
+ *
+ * Los dos clips comparten el mismo fotograma en cada punto de cambio:
+ *   forward termina = reverse comienza
+ *   reverse termina = forward comienza
+ *
+ * Además, el vídeo que va a entrar se reproduce ANTES de hacerlo visible.
+ * Esto evita el flash negro/blanco que puede aparecer si el navegador todavía
+ * no ha pintado el primer frame del segundo vídeo.
  */
 export default function HeroVideo() {
   const isMobile = useIsMobile();
   const src = isMobile ? MOBILE : DESKTOP;
+
   const forwardRef = useRef<HTMLVideoElement>(null);
   const reverseRef = useRef<HTMLVideoElement>(null);
-  const [showReverse, setShowReverse] = useState(false);
+  const [phase, setPhase] = useState<"forward" | "reverse">("forward");
 
   useEffect(() => {
-    const fwd = forwardRef.current;
-    const rev = reverseRef.current;
-    if (!fwd || !rev) return undefined;
+    const forward = forwardRef.current;
+    const reverse = reverseRef.current;
+
+    if (!forward || !reverse) return undefined;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      fwd.pause();
-      rev.pause();
+      forward.pause();
+      reverse.pause();
+      forward.currentTime = 0;
+      setPhase("forward");
       return undefined;
     }
 
     let cancelled = false;
 
-    const playForward = () => {
-      if (cancelled) return;
-      setShowReverse(false);
-      rev.pause();
-      fwd.currentTime = 0;
-      void fwd.play().catch(() => undefined);
+    const play = async (video: HTMLVideoElement) => {
+      video.muted = true;
+      video.playsInline = true;
+      await video.play();
     };
 
-    const playReverse = () => {
+    const playForward = async () => {
       if (cancelled) return;
-      setShowReverse(true);
-      fwd.pause();
-      rev.currentTime = 0;
-      void rev.play().catch(() => undefined);
+
+      reverse.pause();
+      forward.currentTime = 0;
+
+      try {
+        await play(forward);
+        if (!cancelled) setPhase("forward");
+      } catch {
+        // El vídeo está muted, así que normalmente autoplay está permitido.
+        // Si el navegador lo bloquea, el usuario puede iniciar el vídeo con
+        // cualquier interacción sin que la página quede visualmente vacía.
+      }
     };
 
-    fwd.addEventListener("ended", playReverse);
-    rev.addEventListener("ended", playForward);
+    const playReverse = async () => {
+      if (cancelled) return;
 
-    playForward();
+      forward.pause();
+      reverse.currentTime = 0;
+
+      try {
+        // Empezamos a reproducir el reverse antes de mostrarlo. Así el primer
+        // frame ya está listo cuando hacemos el cambio de opacidad.
+        await play(reverse);
+        if (!cancelled) setPhase("reverse");
+      } catch {
+        // Fallback de seguridad: si el reverse no puede reproducirse, volvemos
+        // al forward en lugar de dejar el hero completamente vacío.
+        if (!cancelled) void playForward();
+      }
+    };
+
+    const onForwardEnded = () => void playReverse();
+    const onReverseEnded = () => void playForward();
+
+    forward.addEventListener("ended", onForwardEnded);
+    reverse.addEventListener("ended", onReverseEnded);
+
+    void playForward();
 
     return () => {
       cancelled = true;
-      fwd.removeEventListener("ended", playReverse);
-      rev.removeEventListener("ended", playForward);
+      forward.pause();
+      reverse.pause();
+      forward.removeEventListener("ended", onForwardEnded);
+      reverse.removeEventListener("ended", onReverseEnded);
     };
-  }, [src]);
+  }, [src.forward, src.reverse]);
 
   return (
-    <section className="relative h-[100svh] min-h-[620px] overflow-hidden bg-[oklch(0.1_0.01_330)]">
+    <section className="relative h-[100svh] min-h-[620px] overflow-hidden bg-black">
+      {/*
+        Ambos vídeos están montados y precargados. El que está detrás permanece
+        oculto, pero listo para entrar cuando termine el actual.
+      */}
       <video
-        key={`${src.forward}-fwd`}
         ref={forwardRef}
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[120ms] ${
-          showReverse ? "opacity-0" : "opacity-100"
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ease-linear will-change-[opacity] ${
+          phase === "forward" ? "opacity-100" : "opacity-0"
         }`}
         src={src.forward}
         poster="/video/hero-poster.jpg"
         muted
         playsInline
         preload="auto"
+        aria-hidden={phase !== "forward"}
       />
+
       <video
-        key={`${src.reverse}-rev`}
         ref={reverseRef}
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[120ms] ${
-          showReverse ? "opacity-100" : "opacity-0"
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ease-linear will-change-[opacity] ${
+          phase === "reverse" ? "opacity-100" : "opacity-0"
         }`}
         src={src.reverse}
+        poster="/video/hero-poster.jpg"
         muted
         playsInline
         preload="auto"
+        aria-hidden={phase !== "reverse"}
       />
 
-      {/* Leve viñeta inferior para que el texto siempre sea legible,
-          sin tapar el logo ni el arreglo floral. */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/85 via-transparent to-transparent" />
+      {/* Viñeta cinematográfica: conserva el vídeo visible sin generar la
+          pantalla gris/blanca que aparecía cuando terminaba el clip. */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
 
       <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-5 pb-16 md:px-8 md:pb-20">
         <div className="max-w-xl">
@@ -118,6 +158,7 @@ export default function HeroVideo() {
           <p className="reveal is-in mt-4 max-w-md text-sm leading-relaxed text-[oklch(0.86_0.02_80/0.85)] sm:text-base">
             Composiciones de autor, entrega el mismo día.
           </p>
+
           <div className="mt-7 flex flex-wrap items-center gap-4">
             <Link
               to="/catalogo"
@@ -126,6 +167,7 @@ export default function HeroVideo() {
               Ver colecciones
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </Link>
+
             <Link
               to="/contacto"
               className="border border-[oklch(0.86_0.02_80/0.4)] px-8 py-4 text-[11px] tracking-[0.26em] text-[oklch(0.86_0.02_80)] uppercase transition-colors hover:border-primary hover:text-primary"
