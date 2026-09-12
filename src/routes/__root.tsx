@@ -84,7 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Floristería Deluxe Premium · Atelier floral en Barranquilla" },
+      { title: "Floristería Deluxury · Atelier floral en Barranquilla" },
       {
         name: "description",
         content:
