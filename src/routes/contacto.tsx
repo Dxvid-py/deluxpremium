@@ -9,13 +9,13 @@ import { useI18n } from "@/lib/i18n";
 export const Route = createFileRoute("/contacto")({
   head: () => ({
     meta: [
-      { title: "Contacto y pedidos a medida · Floristería Deluxe Premium" },
+      { title: "Contacto y pedidos a medida · Floristería Deluxury" },
       {
         name: "description",
         content:
           "Escríbenos por WhatsApp para pedidos corporativos, eventos o arreglos florales a medida en Barranquilla.",
       },
-      { property: "og:title", content: "Contacto · Deluxe Premium" },
+      { property: "og:title", content: "Contacto · Deluxury" },
       {
         property: "og:description",
         content: "Pedidos a medida, eventos y arreglos corporativos en Barranquilla.",
@@ -65,21 +65,21 @@ function Contact() {
             <li className="flex items-center gap-3" data-anim="fade-up">
               <Mail className="h-4 w-4 shrink-0 text-primary" />
               <a
-                href={`mailto:${settings?.["email"] ?? "floristeriadeluxe@gmail.com"}`}
+                href={`mailto:${settings?.["email"] ?? "floristeriadeluxury@gmail.com"}`}
                 className="hover:text-primary"
               >
-                {settings?.["email"] ?? "floristeriadeluxe@gmail.com"}
+                {settings?.["email"] ?? "floristeriadeluxury@gmail.com"}
               </a>
             </li>
             <li className="flex items-center gap-3" data-anim="fade-up">
               <Instagram className="h-4 w-4 shrink-0 text-primary" />
               <a
-                href={settings?.["instagram"] ?? "https://instagram.com/floristeriadeluxe"}
+                href={settings?.["instagram"] ?? "https://instagram.com/deluxuryfloristeria"}
                 target="_blank"
                 rel="noreferrer"
                 className="hover:text-primary"
               >
-                {settings?.["instagram_handle"] ?? "@floristeriadeluxe"}
+                {settings?.["instagram_handle"] ?? "@deluxuryfloristeria"}
               </a>
             </li>
             <li className="flex items-start gap-3" data-anim="fade-up">
@@ -131,7 +131,7 @@ function Contact() {
       <div className="mx-auto mt-20 max-w-7xl px-5 md:px-8">
         <div className="aura-glow overflow-hidden rounded-sm" data-anim="clip">
           <iframe
-            title="Mapa Floristería Deluxe Premium"
+            title="Mapa Floristería Deluxury"
             src="https://www.google.com/maps?q=Carrera%2043%20%2379-226%20Barranquilla%20Colombia&output=embed"
             loading="lazy"
             className="relative z-1 h-80 w-full border-0 grayscale-[0.4] transition-all duration-1000 hover:grayscale-0"
