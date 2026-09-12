@@ -15,7 +15,7 @@ export default function Footer() {
       <div className="diffused-light absolute inset-0 opacity-60" />
       <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-20 md:grid-cols-4 md:px-8">
         <div className="md:col-span-2" data-anim="fade-up">
-          <img src="/logo.png" alt="Floristería Deluxe Premium" className="h-14 w-auto" />
+          <img src="/logo.png" alt="Floristería Deluxury" className="h-14 w-auto" />
           <p className="mt-6 max-w-sm text-sm leading-relaxed text-muted-foreground">
             {t("footer.about")}
           </p>
@@ -30,7 +30,7 @@ export default function Footer() {
               <Phone className="h-4 w-4" />
             </a>
             <a
-              href={settings?.["instagram"] ?? "https://instagram.com/floristeriadeluxe"}
+              href={settings?.["instagram"] ?? "https://instagram.com/deluxuryfloristeria"}
               target="_blank"
               rel="noreferrer"
               className="press rounded-full border border-border p-2.5 transition-colors hover:border-primary/60 hover:bg-primary/10"
@@ -39,7 +39,7 @@ export default function Footer() {
               <Instagram className="h-4 w-4" />
             </a>
             <span className="text-xs text-muted-foreground">
-              {settings?.["instagram_handle"] ?? "@floristeriadeluxe"}
+              {settings?.["instagram_handle"] ?? "@deluxuryfloristeria"}
             </span>
           </div>
         </div>
@@ -79,10 +79,10 @@ export default function Footer() {
             <li className="flex items-start gap-2">
               <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <a
-                href={`mailto:${settings?.["email"] ?? "floristeriadeluxe@gmail.com"}`}
+                href={`mailto:${settings?.["email"] ?? "floristeriadeluxury@gmail.com"}`}
                 className="hover:text-primary"
               >
-                {settings?.["email"] ?? "floristeriadeluxe@gmail.com"}
+                {settings?.["email"] ?? "floristeriadeluxury@gmail.com"}
               </a>
             </li>
             <li className="flex items-start gap-2">
@@ -112,7 +112,7 @@ export default function Footer() {
       </div>
       <div className="hairline" />
       <p className="py-6 text-center text-[10px] tracking-[0.24em] text-muted-foreground uppercase">
-        © {new Date().getFullYear()} Floristería Deluxe Premium · Barranquilla
+        © {new Date().getFullYear()} Floristería Deluxury · Barranquilla
       </p>
     </footer>
   );
