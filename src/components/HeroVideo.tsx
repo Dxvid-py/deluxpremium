@@ -1,105 +1,106 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const MOBILE_SRC = "/video/hero-mobile.mp4";
-const DESKTOP_SRC = "/video/hero-desktop.mp4";
+type Sources = { forward: string; reverse: string };
+
+const MOBILE: Sources = {
+  forward: "/video/hero-mobile.mp4",
+  reverse: "/video/hero-mobile-reverse.mp4",
+};
+const DESKTOP: Sources = {
+  forward: "/video/hero-desktop.mp4",
+  reverse: "/video/hero-desktop-reverse.mp4",
+};
 
 /**
- * Hero de video con fuente distinta por dispositivo:
- * - Móvil     → hero-mobile.mp4  (1080×1440, vertical)
- * - Escritorio → hero-desktop.mp4 (1920×1080, horizontal)
+ * Hero de video en loop "boomerang" (avanza y luego retrocede) de verdad
+ * fluido. Probamos primero a retroceder el mismo clip pisando
+ * `currentTime` cuadro a cuadro con requestAnimationFrame, pero en la
+ * práctica cada seek hacia atrás obliga al navegador a redecodificar desde
+ * el fotograma clave anterior, y con GOPs largos eso se traduce en
+ * cuelgues/tirones reales (lo que se veía: el video se congelaba al llegar
+ * al final).
  *
- * El video avanza y, al llegar al final, retrocede hasta el principio en
- * vez de cortar y reiniciar, así el loop nunca se ve interrumpido (efecto
- * "boomerang"). Importante: NO usamos `playbackRate = -1`. Aunque la spec
- * de HTML5 lo permite, casi ningún navegador decodifica vídeo hacia atrás
- * de forma fluida con eso — es exactamente lo que causaba los cortes y
- * pausas que se veían antes. En su lugar, cuando el video llega al final
- * lo pausamos y retrocedemos manualmente el `currentTime` cuadro a cuadro
- * con requestAnimationFrame, que sí es fluido y funciona igual en todos
- * los navegadores.
+ * La solución fiable: generamos un segundo archivo con los mismos
+ * fotogramas *ya invertidos* (`ffmpeg -vf reverse`, ver
+ * public/video/hero-*-reverse.mp4) y alternamos entre los dos videos
+ * — cada uno se reproduce siempre hacia adelante, que es lo único que
+ * todos los navegadores decodifican sin tirones. El cambio entre uno y
+ * otro ocurre justo cuando comparten el mismo fotograma (el último de uno
+ * es el primero del otro), con un crossfade de 120ms como colchón extra
+ * por si el primer fotograma tarda un instante en pintar.
  */
 export default function HeroVideo() {
   const isMobile = useIsMobile();
-  const src = isMobile ? MOBILE_SRC : DESKTOP_SRC;
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const src = isMobile ? MOBILE : DESKTOP;
+  const forwardRef = useRef<HTMLVideoElement>(null);
+  const reverseRef = useRef<HTMLVideoElement>(null);
+  const [showReverse, setShowReverse] = useState(false);
 
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return undefined;
+    const fwd = forwardRef.current;
+    const rev = reverseRef.current;
+    if (!fwd || !rev) return undefined;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      v.pause();
+      fwd.pause();
+      rev.pause();
       return undefined;
     }
 
-    const EDGE = 0.05; // margen en segundos para evitar quedar "pegado" en los extremos
-    let dir: 1 | -1 = 1;
-    let reversing = false;
-    let last = 0;
-    let raf = 0;
+    let cancelled = false;
 
-    const stepReverse = (now: number) => {
-      if (!reversing) return;
-      if (!last) last = now;
-      const dt = (now - last) / 1000;
-      last = now;
-      const next = v.currentTime - dt;
-
-      if (next <= EDGE) {
-        reversing = false;
-        dir = 1;
-        v.currentTime = 0;
-        void v.play().catch(() => undefined);
-        return;
-      }
-      v.currentTime = next;
-      raf = requestAnimationFrame(stepReverse);
+    const playForward = () => {
+      if (cancelled) return;
+      setShowReverse(false);
+      rev.pause();
+      fwd.currentTime = 0;
+      void fwd.play().catch(() => undefined);
     };
 
-    const onTimeUpdate = () => {
-      if (reversing) return;
-      const d = v.duration;
-      if (!Number.isFinite(d) || d <= 0) return;
-      if (dir === 1 && v.currentTime >= d - EDGE) {
-        v.pause();
-        dir = -1;
-        reversing = true;
-        last = 0;
-        raf = requestAnimationFrame(stepReverse);
-      }
+    const playReverse = () => {
+      if (cancelled) return;
+      setShowReverse(true);
+      fwd.pause();
+      rev.currentTime = 0;
+      void rev.play().catch(() => undefined);
     };
 
-    // Si el navegador pausa el video por cualquier motivo mientras debería
-    // ir hacia adelante (el "se pausa" que se veía antes), lo retomamos.
-    const onPause = () => {
-      if (!reversing && document.visibilityState === "visible") {
-        void v.play().catch(() => undefined);
-      }
-    };
+    fwd.addEventListener("ended", playReverse);
+    rev.addEventListener("ended", playForward);
 
-    v.addEventListener("timeupdate", onTimeUpdate);
-    v.addEventListener("pause", onPause);
-    void v.play().catch(() => undefined);
+    playForward();
 
     return () => {
-      v.removeEventListener("timeupdate", onTimeUpdate);
-      v.removeEventListener("pause", onPause);
-      cancelAnimationFrame(raf);
+      cancelled = true;
+      fwd.removeEventListener("ended", playReverse);
+      rev.removeEventListener("ended", playForward);
     };
   }, [src]);
 
   return (
     <section className="relative h-[100svh] min-h-[620px] overflow-hidden bg-[oklch(0.1_0.01_330)]">
       <video
-        key={src}
-        ref={videoRef}
-        className="absolute inset-0 h-full w-full object-cover"
-        src={src}
+        key={`${src.forward}-fwd`}
+        ref={forwardRef}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[120ms] ${
+          showReverse ? "opacity-0" : "opacity-100"
+        }`}
+        src={src.forward}
         poster="/video/hero-poster.jpg"
-        autoPlay
+        muted
+        playsInline
+        preload="auto"
+      />
+      <video
+        key={`${src.reverse}-rev`}
+        ref={reverseRef}
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[120ms] ${
+          showReverse ? "opacity-100" : "opacity-0"
+        }`}
+        src={src.reverse}
         muted
         playsInline
         preload="auto"
