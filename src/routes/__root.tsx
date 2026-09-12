@@ -16,6 +16,7 @@ import { StoreProvider } from "@/lib/store";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
+import FlorencioWidget from "@/components/FlorencioWidget";
 import CinematicIntro from "@/components/CinematicIntro";
 import { LanguageProvider } from "@/lib/i18n";
 import { PetalBurstProvider } from "@/lib/petal-burst";
@@ -146,6 +147,7 @@ function RootComponent() {
             </main>
             <Footer />
             <CartDrawer />
+            <FlorencioWidget />
             <Toaster position="bottom-center" />
           </PetalBurstProvider>
         </StoreProvider>
