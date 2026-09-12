@@ -20,8 +20,8 @@ type Scene = {
 const SCENES: Scene[] = [
   {
     n: "01",
-    eyebrowEs: "Floristería Deluxe Premium",
-    eyebrowEn: "Deluxe Premium Flower Shop",
+    eyebrowEs: "Floristería Deluxury",
+    eyebrowEn: "Deluxury Flower Shop",
     titleEs: "El lujo",
     titleEn: "Luxury",
     accentEs: "hecho flor",
