@@ -29,14 +29,14 @@ export default function InstagramSection() {
             </h2>
           </div>
           <a
-            href={settings?.["instagram"] ?? "https://instagram.com/floristeriadeluxe"}
+            href={settings?.["instagram"] ?? "https://instagram.com/deluxuryfloristeria"}
             target="_blank"
             rel="noreferrer"
             data-anim="right"
             className="press inline-flex items-center gap-2 text-[11px] tracking-[0.26em] uppercase hover:text-primary"
           >
             <Instagram className="h-4 w-4" />
-            {settings?.["instagram_handle"] ?? "@floristeriadeluxe"}
+            {settings?.["instagram_handle"] ?? "@deluxuryfloristeria"}
           </a>
         </div>
         <p className="mt-4 text-sm text-muted-foreground" data-anim="fade-up">
