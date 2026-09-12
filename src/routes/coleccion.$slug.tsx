@@ -10,15 +10,15 @@ export const Route = createFileRoute("/coleccion/$slug")({
     const name = params.slug.charAt(0).toUpperCase() + params.slug.slice(1);
     return {
       meta: [
-        { title: `Colección ${name} · Floristería Deluxe Premium` },
+        { title: `Colección ${name} · Floristería Deluxury` },
         {
           name: "description",
           content: `Arreglos florales de lujo de la colección ${name}, hechos a mano en Barranquilla con entrega el mismo día.`,
         },
-        { property: "og:title", content: `Colección ${name} · Deluxe Premium` },
+        { property: "og:title", content: `Colección ${name} · Deluxury` },
         {
           property: "og:description",
-          content: `Descubre la colección ${name} del atelier floral Deluxe Premium.`,
+          content: `Descubre la colección ${name} del atelier floral Deluxury.`,
         },
       ],
     };
