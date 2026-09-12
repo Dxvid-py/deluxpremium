@@ -39,7 +39,7 @@ export default function GallerySection() {
                 <div className="relative z-1 overflow-hidden rounded-sm">
                   <img
                     src={p.image_url}
-                    alt={tc(p.caption) || "Cliente Deluxe Premium"}
+                    alt={tc(p.caption) || "Cliente Deluxury"}
                     loading="lazy"
                     className="aspect-square w-full object-cover transition-transform duration-1000 hover:scale-105"
                   />
