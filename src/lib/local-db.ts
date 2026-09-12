@@ -21,11 +21,14 @@ export type TableName =
   | "user_roles"
   | "auth_users";
 
-const DB_KEY = "fdp-local-db-v3";
+// v4: rebrand a Floristería Deluxury (nuevo logo, fotos y categorías) —
+// se sube la versión para forzar un reseed en navegadores que ya tenían
+// datos de la v3 guardados en localStorage.
+const DB_KEY = "fdp-local-db-v4";
 const SESSION_KEY = "fdp-local-session-v1";
 
-export const ADMIN_EMAIL = "floristeriadeluxe@gmail.com";
-export const ADMIN_PASSWORD = "deluxe2026";
+export const ADMIN_EMAIL = "floristeriadeluxury@gmail.com";
+export const ADMIN_PASSWORD = "deluxury2026";
 
 export function uid(): string {
   const g = globalThis.crypto;
@@ -223,14 +226,14 @@ function seed(): Record<TableName, Row[]> {
     site_settings: [
       { key: "trm_cop_usd", value: "3950" },
       { key: "whatsapp_number", value: "573006301123" },
-      { key: "brand_name", value: "Floristería Deluxe Premium" },
+      { key: "brand_name", value: "Floristería Deluxury" },
       { key: "email", value: ADMIN_EMAIL },
       { key: "address", value: "Carrera 43 #79-226, Local 1, Barranquilla, Colombia" },
       { key: "city", value: "Barranquilla" },
       { key: "shipping_cop", value: "18000" },
       { key: "free_shipping_from_cop", value: "350000" },
-      { key: "instagram", value: "https://instagram.com/floristeriadeluxe" },
-      { key: "instagram_handle", value: "@floristeriadeluxe" },
+      { key: "instagram", value: "https://instagram.com/deluxuryfloristeria" },
+      { key: "instagram_handle", value: "@deluxuryfloristeria" },
       { key: "maps_url", value: "https://maps.app.goo.gl/iP9B2jxw3JVnETTe7" },
       { key: "hours_weekdays", value: "Lunes a sábado 8:00 – 20:00" },
       { key: "hours_sunday", value: "Domingo 9:00 – 18:00" },
@@ -275,7 +278,7 @@ function seed(): Record<TableName, Row[]> {
     instagram_posts: [
       {
         id: uid(),
-        post_url: "https://instagram.com/floristeriadeluxe",
+        post_url: "https://instagram.com/deluxuryfloristeria",
         image_url: "/img/prod-01.jpg",
         caption: "Rouge Éternel",
         sort_order: 1,
@@ -283,7 +286,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        post_url: "https://instagram.com/floristeriadeluxe",
+        post_url: "https://instagram.com/deluxuryfloristeria",
         image_url: "/img/prod-04.jpg",
         caption: "Célébration Deluxe",
         sort_order: 2,
@@ -291,7 +294,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        post_url: "https://instagram.com/floristeriadeluxe",
+        post_url: "https://instagram.com/deluxuryfloristeria",
         image_url: "/img/prod-03.jpg",
         caption: "Orchidée Noire",
         sort_order: 3,
@@ -299,7 +302,7 @@ function seed(): Record<TableName, Row[]> {
       },
       {
         id: uid(),
-        post_url: "https://instagram.com/floristeriadeluxe",
+        post_url: "https://instagram.com/deluxuryfloristeria",
         image_url: "/img/hero-02.jpg",
         caption: "Lumière Blanche",
         sort_order: 4,
