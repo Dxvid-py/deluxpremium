@@ -155,7 +155,7 @@ export default function CinematicIntro() {
           />
           <img
             src="/logo.png"
-            alt="Floristería Deluxe Premium"
+            alt="Floristería Deluxury"
             className="relative h-36 w-auto sm:h-48 md:h-56"
           />
         </div>
@@ -173,7 +173,7 @@ export default function CinematicIntro() {
           }`}
         >
           <span className="text-lux-gradient block">Floristería</span>
-          <span className="text-lux-gradient mt-1 block tracking-[0.16em]">Deluxe Premium</span>
+          <span className="text-lux-gradient mt-1 block tracking-[0.16em]">Deluxury</span>
         </h1>
         <div
           className={`hairline mt-8 transition-all duration-1000 ${
