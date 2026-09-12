@@ -64,7 +64,10 @@ function Checkout() {
     }
     setSending(true);
 
+    const { data: sessionData } = await supabase.auth.getSession();
+
     const payload = {
+      user_id: sessionData.session?.user.id ?? null,
       customer_name: form.customer_name,
       customer_phone: form.customer_phone,
       customer_email: form.customer_email || null,

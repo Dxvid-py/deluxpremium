@@ -42,6 +42,7 @@ export type OrderItem = {
 export type Order = {
   id: string;
   order_number: string;
+  user_id: string | null;
   customer_name: string;
   customer_phone: string;
   customer_email: string | null;
@@ -123,10 +124,31 @@ export const instagramQuery = {
 };
 
 /**
- * Guarda una imagen elegida desde el dispositivo dentro de la base local.
- * La convierte a una URL de datos comprimida para que quepa en el navegador.
+ * Sube una imagen elegida desde el dispositivo al bucket "media" de
+ * Supabase Storage y devuelve su URL pública. Antes esto convertía el
+ * archivo a base64 y lo guardaba directo en la fila (funcionaba con la
+ * base local, pero en una base de datos real infla las tablas y es lento
+ * de transferir), así que primero la redimensionamos en el navegador y
+ * luego subimos el archivo comprimido.
  */
-export async function uploadMedia(file: File, _folder = "productos"): Promise<string> {
+export async function uploadMedia(file: File, folder = "productos"): Promise<string> {
+  const compressed = await compressImage(file);
+  const ext = compressed.type === "image/png" ? "png" : "jpg";
+  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+
+  const { error } = await supabase.storage.from("media").upload(path, compressed, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: compressed.type,
+  });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from("media").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/** Redimensiona a 1600px de ancho máximo y recomprime como JPEG ~85%. */
+async function compressImage(file: File): Promise<Blob> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -134,21 +156,23 @@ export async function uploadMedia(file: File, _folder = "productos"): Promise<st
     reader.readAsDataURL(file);
   });
 
-  // Redimensiona a 1400px de ancho máximo para no llenar el almacenamiento.
-  return await new Promise<string>((resolve) => {
+  return await new Promise<Blob>((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const max = 1400;
+      const max = 1600;
       const scale = Math.min(1, max / img.width);
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
       const ctx = canvas.getContext("2d");
-      if (!ctx) return resolve(dataUrl);
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+      canvas.toBlob((blob) => resolve(blob ?? file), "image/jpeg", 0.85);
     };
-    img.onerror = () => resolve(dataUrl);
+    img.onerror = () => resolve(file);
     img.src = dataUrl;
   });
 }
