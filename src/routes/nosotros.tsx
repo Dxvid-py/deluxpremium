@@ -5,13 +5,13 @@ import { useReveal } from "@/hooks/use-reveal";
 export const Route = createFileRoute("/nosotros")({
   head: () => ({
     meta: [
-      { title: "El atelier · Floristería Deluxe Premium" },
+      { title: "El atelier · Floristería Deluxury" },
       {
         name: "description",
         content:
-          "Conoce el atelier floral Deluxe Premium en Barranquilla: flor de grado premium, diseño de autor y entregas cuidadas.",
+          "Conoce el atelier floral Deluxury en Barranquilla: flor de grado premium, diseño de autor y entregas cuidadas.",
       },
-      { property: "og:title", content: "El atelier · Deluxe Premium" },
+      { property: "og:title", content: "El atelier · Deluxury" },
       {
         property: "og:description",
         content: "Diseño floral de autor con flor premium, hecho a mano en Barranquilla.",
@@ -40,7 +40,7 @@ function About() {
             Cultivamos <span className="text-lux-gradient italic">momentos</span>, no sólo flores
           </h1>
           <p data-anim="fade-up" className="mt-8 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            Floristería Deluxe Premium nació en Barranquilla con una idea simple: si una flor va a
+            Floristería Deluxury nació en Barranquilla con una idea simple: si una flor va a
             representar algo importante, debe estar a la altura. Trabajamos con cultivos
             colombianos y flor importada, en cantidades pequeñas y controladas, para que cada pieza
             sea irrepetible.
