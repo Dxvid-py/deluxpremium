@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { LogOut, Menu, ShoppingBag, User, X } from "lucide-react";
@@ -17,12 +17,20 @@ const NAV = [
 export default function Header() {
   const { count, setCartOpen, currency, setCurrency } = useStore();
   const { t, lang, setLang } = useI18n();
+  const { pathname } = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [pop, setPop] = useState(false);
   const prevCount = useRef(count);
   const { data: categories } = useQuery(categoriesQuery);
   const [session, setSession] = useState<Session | null>(null);
+
+  // Sólo el home tiene un hero de video oscuro debajo del header; en el
+  // resto de páginas el contenido bajo el header siempre es claro. Mientras
+  // no se ha hecho scroll ahí, el header es transparente sobre ese video,
+  // así que necesita texto/iconos claros en vez de los tonos oscuros que
+  // usa sobre el fondo champagne del resto del sitio.
+  const overDark = pathname === "/" && !scrolled;
 
   // Sesión del visitante: se lee al montar y se mantiene al día con los
   // cambios de autenticación (entrar / salir).
@@ -56,6 +64,17 @@ export default function Header() {
     return () => window.clearTimeout(id);
   }, [count]);
 
+  // Cierra el menú móvil al cambiar de ruta o al pasar a estado "scrolled",
+  // para que nunca quede abierto con los estilos del estado equivocado.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  const iconText = overDark ? "text-[oklch(0.94_0.01_84)]" : "text-foreground";
+  const mutedText = overDark ? "text-[oklch(0.94_0.01_84/0.75)]" : "text-muted-foreground";
+  const hairBorder = overDark ? "border-[oklch(0.94_0.01_84/0.35)]" : "border-border";
+  const hoverPrimary = "hover:text-primary";
+
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
@@ -63,16 +82,12 @@ export default function Header() {
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8">
-        <Link to="/" className="press group flex items-center gap-3">
+        <Link to="/" className="press group flex items-center">
           <img
             src="/logo.png"
-            alt="Floristería Deluxe Premium"
-            className="h-10 w-auto transition-transform duration-700 group-hover:scale-105"
+            alt="Floristería Deluxury"
+            className="h-11 w-auto transition-transform duration-700 group-hover:scale-105 sm:h-14"
           />
-          <span className="hidden font-display text-lg leading-none tracking-[0.2em] text-cream sm:block">
-            DELUXE
-            <span className="block text-[9px] tracking-[0.42em] text-primary">PREMIUM</span>
-          </span>
         </Link>
 
         <nav className="hidden items-center gap-9 lg:flex">
@@ -81,7 +96,7 @@ export default function Header() {
               key={item.to}
               to={item.to}
               activeOptions={{ exact: item.to === "/" }}
-              className="relative text-[11px] tracking-[0.24em] text-muted-foreground uppercase transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:text-primary hover:after:origin-left hover:after:scale-x-100"
+              className={`relative text-[11px] tracking-[0.24em] uppercase transition-colors after:absolute after:-bottom-1.5 after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:origin-left hover:after:scale-x-100 ${mutedText} ${hoverPrimary}`}
               activeProps={{ className: "text-primary" }}
             >
               {t(item.key)}
@@ -90,15 +105,13 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="hidden items-center rounded-full border border-border p-0.5 md:flex">
+          <div className={`hidden items-center rounded-full border p-0.5 md:flex ${hairBorder}`}>
             {(["es", "en"] as const).map((l) => (
               <button
                 key={l}
                 onClick={() => setLang(l)}
                 className={`press rounded-full px-3 py-1 text-[10px] tracking-[0.2em] uppercase transition-colors ${
-                  lang === l
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-primary"
+                  lang === l ? "bg-primary text-primary-foreground" : `${mutedText} ${hoverPrimary}`
                 }`}
               >
                 {l}
@@ -106,7 +119,7 @@ export default function Header() {
             ))}
           </div>
 
-          <div className="hidden items-center rounded-full border border-border p-0.5 sm:flex">
+          <div className={`hidden items-center rounded-full border p-0.5 sm:flex ${hairBorder}`}>
             {(["COP", "USD"] as const).map((c) => (
               <button
                 key={c}
@@ -114,7 +127,7 @@ export default function Header() {
                 className={`press rounded-full px-3 py-1 text-[10px] tracking-[0.2em] transition-colors ${
                   currency === c
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-primary"
+                    : `${mutedText} ${hoverPrimary}`
                 }`}
               >
                 {c}
@@ -126,7 +139,7 @@ export default function Header() {
             to="/cuenta"
             aria-label={session ? t("nav.account") : t("auth.signIn")}
             title={session ? session.user.email : t("auth.signIn")}
-            className="press relative flex h-9 items-center gap-2 rounded-full border border-border px-3 transition-colors hover:border-primary/60 hover:bg-primary/10"
+            className={`press relative flex h-9 items-center gap-2 rounded-full border px-3 transition-colors hover:border-primary/60 hover:bg-primary/10 ${hairBorder} ${iconText}`}
             activeProps={{ className: "border-primary text-primary" }}
           >
             {session ? (
@@ -144,9 +157,9 @@ export default function Header() {
           <button
             onClick={() => setCartOpen(true)}
             aria-label={t("cta.cart")}
-            className="press relative rounded-full border border-border p-2.5 transition-colors hover:border-primary/60 hover:bg-primary/10"
+            className={`press relative rounded-full border p-2.5 transition-colors hover:border-primary/60 hover:bg-primary/10 ${hairBorder}`}
           >
-            <ShoppingBag className={`h-4 w-4 text-cream ${pop ? "animate-cart-pop" : ""}`} />
+            <ShoppingBag className={`h-4 w-4 ${iconText} ${pop ? "animate-cart-pop" : ""}`} />
             {count > 0 && (
               <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] text-accent-foreground">
                 {count}
@@ -157,7 +170,7 @@ export default function Header() {
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label={t("cta.menu")}
-            className="press rounded-full border border-border p-2.5 lg:hidden"
+            className={`press rounded-full border p-2.5 lg:hidden ${hairBorder} ${iconText}`}
           >
             {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
