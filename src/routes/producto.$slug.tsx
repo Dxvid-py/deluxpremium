@@ -11,13 +11,13 @@ import { useReveal } from "@/hooks/use-reveal";
 export const Route = createFileRoute("/producto/$slug")({
   head: ({ params }) => ({
     meta: [
-      { title: `${params.slug.replace(/-/g, " ")} · Floristería Deluxe Premium` },
+      { title: `${params.slug.replace(/-/g, " ")} · Floristería Deluxury` },
       {
         name: "description",
         content:
           "Arreglo floral de lujo hecho a mano en nuestro atelier de Barranquilla, con entrega el mismo día.",
       },
-      { property: "og:title", content: "Pieza del atelier · Deluxe Premium" },
+      { property: "og:title", content: "Pieza del atelier · Deluxury" },
       {
         property: "og:description",
         content: "Arreglo floral de lujo hecho a mano con entrega el mismo día en Barranquilla.",
