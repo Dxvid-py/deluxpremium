@@ -42,7 +42,7 @@ const DICT: Dict = {
     en: "The art of giving flowers, elevated to an experience.",
   },
 
-  "home.benefits.eyebrow": { es: "Por qué Deluxe", en: "Why Deluxe" },
+  "home.benefits.eyebrow": { es: "Por qué Deluxury", en: "Why Deluxury" },
   "home.b1.title": { es: "Flor grado premium", en: "Premium grade flowers" },
   "home.b1.copy": {
     es: "Selección diaria de flor importada y nacional de primera calidad.",
@@ -60,8 +60,8 @@ const DICT: Dict = {
   },
   "home.b4.title": { es: "Envío cuidado", en: "Careful shipping" },
   "home.b4.copy": {
-    es: "Transporte refrigerado y empaque firmado Deluxe.",
-    en: "Refrigerated transport and signed Deluxe packaging.",
+    es: "Transporte refrigerado y empaque firmado Deluxury.",
+    en: "Refrigerated transport and signed Deluxury packaging.",
   },
 
   "rev.seal": { es: "PRESIONA PARA DESCUBRIR", en: "PRESS TO DISCOVER" },
