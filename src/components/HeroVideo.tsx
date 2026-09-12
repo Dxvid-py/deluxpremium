@@ -2,46 +2,92 @@ import { useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import mobileVideo from "@/assets/video/hero-mobile.mp4.asset.json";
-import desktopVideo from "@/assets/video/hero-desktop.mp4.asset.json";
+
+const MOBILE_SRC = "/video/hero-mobile.mp4";
+const DESKTOP_SRC = "/video/hero-desktop.mp4";
 
 /**
  * Hero de video con fuente distinta por dispositivo:
- * - Móvil  → hero-mobile.mp4  (1080×1440, vertical)
+ * - Móvil     → hero-mobile.mp4  (1080×1440, vertical)
  * - Escritorio → hero-desktop.mp4 (1920×1080, horizontal)
  *
- * El video avanza a velocidad normal y, al llegar al final,
- * retrocede hasta el principio en vez de cortar y reiniciar,
- * así el loop nunca se ve interrumpido. Se usa `playbackRate`
- * negativo (soportado en Chrome/Safari/Firefox).
+ * El video avanza y, al llegar al final, retrocede hasta el principio en
+ * vez de cortar y reiniciar, así el loop nunca se ve interrumpido (efecto
+ * "boomerang"). Importante: NO usamos `playbackRate = -1`. Aunque la spec
+ * de HTML5 lo permite, casi ningún navegador decodifica vídeo hacia atrás
+ * de forma fluida con eso — es exactamente lo que causaba los cortes y
+ * pausas que se veían antes. En su lugar, cuando el video llega al final
+ * lo pausamos y retrocedemos manualmente el `currentTime` cuadro a cuadro
+ * con requestAnimationFrame, que sí es fluido y funciona igual en todos
+ * los navegadores.
  */
 export default function HeroVideo() {
   const isMobile = useIsMobile();
-  const src = isMobile ? mobileVideo.url : desktopVideo.url;
+  const src = isMobile ? MOBILE_SRC : DESKTOP_SRC;
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const v = videoRef.current;
-    if (!v) return;
+    if (!v) return undefined;
 
-    let dir = 1; // 1 = adelante, -1 = atrás
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      v.pause();
+      return undefined;
+    }
 
-    const flip = () => {
+    const EDGE = 0.05; // margen en segundos para evitar quedar "pegado" en los extremos
+    let dir: 1 | -1 = 1;
+    let reversing = false;
+    let last = 0;
+    let raf = 0;
+
+    const stepReverse = (now: number) => {
+      if (!reversing) return;
+      if (!last) last = now;
+      const dt = (now - last) / 1000;
+      last = now;
+      const next = v.currentTime - dt;
+
+      if (next <= EDGE) {
+        reversing = false;
+        dir = 1;
+        v.currentTime = 0;
+        void v.play().catch(() => undefined);
+        return;
+      }
+      v.currentTime = next;
+      raf = requestAnimationFrame(stepReverse);
+    };
+
+    const onTimeUpdate = () => {
+      if (reversing) return;
       const d = v.duration;
       if (!Number.isFinite(d) || d <= 0) return;
-      if (dir === 1 && v.currentTime >= d - 0.15) {
+      if (dir === 1 && v.currentTime >= d - EDGE) {
+        v.pause();
         dir = -1;
-        v.playbackRate = -1;
-      } else if (dir === -1 && v.currentTime <= 0.15) {
-        dir = 1;
-        v.playbackRate = 1;
+        reversing = true;
+        last = 0;
+        raf = requestAnimationFrame(stepReverse);
       }
     };
 
-    v.addEventListener("timeupdate", flip);
+    // Si el navegador pausa el video por cualquier motivo mientras debería
+    // ir hacia adelante (el "se pausa" que se veía antes), lo retomamos.
+    const onPause = () => {
+      if (!reversing && document.visibilityState === "visible") {
+        void v.play().catch(() => undefined);
+      }
+    };
+
+    v.addEventListener("timeupdate", onTimeUpdate);
+    v.addEventListener("pause", onPause);
+    void v.play().catch(() => undefined);
 
     return () => {
-      v.removeEventListener("timeupdate", flip);
+      v.removeEventListener("timeupdate", onTimeUpdate);
+      v.removeEventListener("pause", onPause);
+      cancelAnimationFrame(raf);
     };
   }, [src]);
 
@@ -65,7 +111,9 @@ export default function HeroVideo() {
 
       <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-end px-5 pb-16 md:px-8 md:pb-20">
         <div className="max-w-xl">
-          <p className="eyebrow reveal is-in text-[oklch(0.86_0.02_80)]">Floristería de lujo · Barranquilla</p>
+          <p className="eyebrow reveal is-in text-[oklch(0.86_0.02_80)]">
+            Floristería de lujo · Barranquilla
+          </p>
           <p className="reveal is-in mt-4 max-w-md text-sm leading-relaxed text-[oklch(0.86_0.02_80/0.85)] sm:text-base">
             Composiciones de autor, entrega el mismo día.
           </p>
@@ -79,7 +127,7 @@ export default function HeroVideo() {
             </Link>
             <Link
               to="/contacto"
-              className="border border-[oklch(0.86_0.02_80/0.4)] px-8 py-4 text-[11px] tracking-[0.26em] text-cream uppercase transition-colors hover:border-primary hover:text-primary"
+              className="border border-[oklch(0.86_0.02_80/0.4)] px-8 py-4 text-[11px] tracking-[0.26em] text-[oklch(0.86_0.02_80)] uppercase transition-colors hover:border-primary hover:text-primary"
             >
               Pedido a medida
             </Link>
