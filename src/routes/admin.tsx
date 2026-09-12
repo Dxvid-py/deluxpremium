@@ -23,10 +23,10 @@ import { formatMoney, slugify } from "@/lib/format";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Panel de administración · Floristería Deluxe Premium" },
+      { title: "Panel de administración · Floristería Deluxury" },
       { name: "description", content: "Gestión de productos, pedidos, TRM y configuración." },
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "Panel · Deluxe Premium" },
+      { property: "og:title", content: "Panel · Deluxury" },
       { property: "og:description", content: "Acceso restringido al equipo del atelier." },
     ],
   }),
@@ -189,7 +189,7 @@ function AuthCard() {
     <div className="flex min-h-screen items-center justify-center px-5">
       <form onSubmit={submit} className="surface-glass w-full max-w-sm rounded-sm p-8">
         <p className="eyebrow">Acceso restringido</p>
-        <h1 className="mt-3 font-display text-3xl">Panel Deluxe</h1>
+        <h1 className="mt-3 font-display text-3xl">Panel Deluxury</h1>
         <div className="mt-8 space-y-4">
           <input
             className={field}
