@@ -8,13 +8,13 @@ import { useReveal } from "@/hooks/use-reveal";
 export const Route = createFileRoute("/catalogo")({
   head: () => ({
     meta: [
-      { title: "Catálogo de flores premium · Floristería Deluxe Premium" },
+      { title: "Catálogo de flores premium · Floristería Deluxury" },
       {
         name: "description",
         content:
           "Explora ramos, cajas y arreglos de lujo por colección, precio y ocasión. Entrega el mismo día en Barranquilla.",
       },
-      { property: "og:title", content: "Catálogo · Floristería Deluxe Premium" },
+      { property: "og:title", content: "Catálogo · Floristería Deluxury" },
       {
         property: "og:description",
         content: "Ramos, cajas y arreglos florales de lujo con entrega el mismo día en Barranquilla.",
