@@ -31,6 +31,13 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
   const onProductClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
+
+    window.dispatchEvent(
+      new CustomEvent("florencio:product-selected", {
+        detail: { name: tc(product.name) },
+      }),
+    );
+
     burst(e.clientX, e.clientY, () => {
       navigate({ to: "/producto/$slug", params: { slug: product.slug } });
     });
