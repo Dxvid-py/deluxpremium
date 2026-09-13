@@ -31,8 +31,8 @@ function ProductMiniCard({ product, onAdd }: { product: Product; onAdd: (product
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-      <div className="grid grid-cols-[82px_1fr] gap-3 p-2.5">
-        <img src={product.images?.[0] ?? "/img/prod-01.jpg"} alt={tc(product.name)} className="h-24 w-full rounded-xl object-cover" />
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-2.5 p-2.5 sm:grid-cols-[82px_1fr] sm:gap-3">
+        <img src={product.images?.[0] ?? "/img/prod-01.jpg"} alt={tc(product.name)} className="h-[76px] w-full rounded-xl object-cover sm:h-24" />
         <div className="min-w-0 py-1">
           <p className="font-display text-lg leading-tight">{tc(product.name)}</p>
           <p className="mt-1 text-xs text-primary">{formatMoney(Number(product.price_cop), currency, trm)}</p>
@@ -159,21 +159,21 @@ export default function FlorencioChat() {
         <div className="fixed inset-0 z-[70] bg-black/20 backdrop-blur-[2px]" onClick={() => setOpen(false)} aria-hidden="true" />
       )}
       <aside
-        className={`fixed right-3 bottom-3 z-[80] flex h-[min(720px,calc(100vh-24px))] w-[min(430px,calc(100vw-24px))] flex-col overflow-hidden rounded-[28px] border border-primary/20 bg-background/98 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.55)] backdrop-blur-xl transition-all duration-500 sm:right-6 sm:bottom-6 ${open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-8 opacity-0"}`}
+        className={`fixed inset-x-2 bottom-2 z-[80] flex h-[min(760px,calc(100dvh-16px))] w-auto min-w-0 flex-col overflow-hidden rounded-[24px] border border-primary/20 bg-background/98 shadow-[0_30px_100px_-30px_rgba(0,0,0,0.55)] backdrop-blur-xl transition-[opacity,transform] duration-500 will-change-transform sm:inset-x-auto sm:right-6 sm:bottom-6 sm:h-[min(720px,calc(100vh-24px))] sm:w-[min(430px,calc(100vw-48px))] sm:rounded-[28px] ${open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-8 opacity-0"}`}
         aria-hidden={!open}
       >
-        <header className="flex items-center justify-between border-b border-border bg-secondary/55 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-xl">🧸</div>
+        <header className="flex shrink-0 items-center justify-between border-b border-border bg-secondary/55 px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-lg sm:h-11 sm:w-11 sm:text-xl">🧸</div>
             <div>
-              <p className="font-display text-xl">Florencio</p>
+              <p className="truncate font-display text-lg sm:text-xl">Florencio</p>
               <p className="text-[9px] tracking-[0.18em] text-muted-foreground uppercase">Asistente Deluxury</p>
             </div>
           </div>
           <button onClick={() => setOpen(false)} aria-label="Cerrar chat" className="rounded-full border border-border p-2 hover:border-primary/50"><X className="h-4 w-4" /></button>
         </header>
 
-        <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-5">
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3.5 py-4 sm:px-4 sm:py-5">
           {messages.map((message) => (
             <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[88%] ${message.role === "user" ? "rounded-2xl rounded-br-md bg-primary px-4 py-3 text-primary-foreground" : "space-y-2"}`}>
@@ -206,8 +206,8 @@ export default function FlorencioChat() {
           )}
         </div>
 
-        <div className="border-t border-border bg-background px-4 py-3">
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+        <div className="shrink-0 border-t border-border bg-background px-3.5 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-4 sm:py-3 sm:pb-3">
+          <div className="mb-2 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {QUICK_PROMPTS.map((prompt) => <button key={prompt} onClick={() => send(prompt)} className="shrink-0 rounded-full border border-border px-3 py-1.5 text-[9px] tracking-[0.05em] hover:border-primary/50">{prompt}</button>)}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-2xl border border-border bg-secondary/35 p-1.5 focus-within:border-primary/50">
