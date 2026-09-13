@@ -17,6 +17,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import FlorencioWidget from "@/components/FlorencioWidget";
+import FlorencioChat from "@/components/FlorencioChat";
 import CinematicIntro from "@/components/CinematicIntro";
 import { LanguageProvider } from "@/lib/i18n";
 import { PetalBurstProvider } from "@/lib/petal-burst";
@@ -148,6 +149,7 @@ function RootComponent() {
             <Footer />
             <CartDrawer />
             <FlorencioWidget />
+            <FlorencioChat />
             <Toaster position="bottom-center" />
           </PetalBurstProvider>
         </StoreProvider>
