@@ -1,20 +1,19 @@
-import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Bot,
   Check,
-  CircleDot,
-  Heart,
-  Instagram,
   MessageCircle,
+  ShieldCheck,
   Sparkles,
   Truck,
   WandSparkles,
-  Zap,
 } from "lucide-react";
 import { productsQuery, settingsQuery } from "@/lib/queries";
+import { formatMoney } from "@/lib/format";
+import { useStore } from "@/lib/store";
 import ProductCard from "@/components/ProductCard";
 
 export const Route = createFileRoute("/florencio")({
@@ -23,7 +22,8 @@ export const Route = createFileRoute("/florencio")({
       { title: "Florencio · Asistente de Deluxury" },
       {
         name: "description",
-        content: "Conoce a Florencio, el asistente inteligente y servicio de entrega especial de Deluxury.",
+        content:
+          "Conoce a Florencio, el asistente inteligente y servicio de entrega especial de Deluxury.",
       },
     ],
   }),
@@ -47,82 +47,81 @@ function parseMedia(raw?: string): FlorencioMedia[] {
   }
 }
 
+const defaultCopy =
+  "Un detalle especial para quienes quieren que Florencio sea parte de la sorpresa y acompañe personalmente la entrega.";
+
 function FlorencioPage() {
   const { data: settings } = useQuery(settingsQuery);
   const { data: products = [] } = useQuery(productsQuery);
-  const [backgroundReady, setBackgroundReady] = useState(false);
-  const [signal, setSignal] = useState(34);
-  const [pulse, setPulse] = useState(false);
+  const { currency } = useStore();
+  const [signal, setSignal] = useState(82);
 
-  const media = parseMedia(settings?.["florencio_media_json"]);
-  const enabled = settings?.["florencio_delivery_enabled"] !== "false";
   const introImage = settings?.["florencio_intro_image_url"] || "/img/florencio.png";
+  const enabled = settings?.["florencio_delivery_enabled"] !== "false";
   const price = Number(settings?.["florencio_delivery_price_cop"] ?? 0);
   const whatsapp = settings?.["whatsapp_number"] ?? "573006301123";
-  const serviceCopy =
-    settings?.["florencio_delivery_description"] ||
-    "Un detalle especial para quienes quieren que Florencio sea parte de la sorpresa y acompañe personalmente la entrega.";
+  const serviceCopy = settings?.["florencio_delivery_description"] || defaultCopy;
+  const configuredVideo = settings?.["florencio_background_video_url"]?.trim();
   const backgroundVideo =
-    settings?.["florencio_background_video_url"] ||
-    "/video/florencio-section/florencio-background.mp4";
-  const suggested = products.filter((p) => p.is_active && p.is_featured).slice(0, 3);
+    configuredVideo && !configuredVideo.endsWith("florencio-background.mp4")
+      ? configuredVideo
+      : "/video/florencio-section/florencio-ia.mp4";
+  const media = parseMedia(settings?.["florencio_media_json"]);
+  const suggested = useMemo(
+    () => products.filter((p) => p.is_active && Number(p.stock) !== 0).slice(0, 3),
+    [products],
+  );
+  const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setSignal((n) => (n + 7) % 100);
-      setPulse(true);
-      window.setTimeout(() => setPulse(false), 700);
-    }, 2400);
+    const id = window.setInterval(() => setSignal((n) => (n >= 96 ? 74 : n + 4)), 2200);
     return () => window.clearInterval(id);
   }, []);
 
   return (
-    <div className="overflow-hidden pt-24 md:pt-28">
-      <section className="florencio-ai-hero relative isolate overflow-hidden border-b border-border bg-foreground text-cream-hi">
+    <div className="overflow-x-clip pt-24 md:pt-28">
+      <section className="florencio-ai-stage relative isolate min-h-[760px] overflow-hidden bg-[#170f16] text-cream-hi md:min-h-[840px]">
         <video
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${backgroundReady ? "opacity-24" : "opacity-0"}`}
+          className="absolute inset-0 h-full w-full object-cover object-[center_58%] opacity-72"
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
+          poster="/video/florencio-section/florencio-ai-poster.jpg"
           src={backgroundVideo}
-          onCanPlay={() => setBackgroundReady(true)}
-          onError={() => setBackgroundReady(false)}
           aria-hidden="true"
         />
-
-        <div className="florencio-ai-grid pointer-events-none absolute inset-0" />
-        <div className="florencio-ai-vignette pointer-events-none absolute inset-0" />
-        <div className={`florencio-ai-sweep pointer-events-none absolute inset-y-0 left-[-18%] w-[36%] ${pulse ? "is-pulsing" : ""}`} />
-        <div className="florencio-ai-orbit florencio-ai-orbit-a pointer-events-none absolute left-[5%] top-[10%] hidden md:block" />
-        <div className="florencio-ai-orbit florencio-ai-orbit-b pointer-events-none absolute right-[5%] bottom-[10%] hidden md:block" />
-
-        <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-5 py-12 sm:gap-14 sm:py-16 md:grid-cols-[1fr_0.9fr] md:px-8 md:py-24">
-          <div className="order-2 md:order-1">
-            <div className="mb-6 flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-2 rounded-full border border-cream-hi/15 bg-cream-hi/5 px-3 py-1.5 text-[9px] tracking-[0.22em] text-cream-hi/80 uppercase backdrop-blur-sm">
-                <span className="florencio-signal-dot" /> Florencio · IA de Deluxury
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(23,15,22,.96)_0%,rgba(23,15,22,.82)_34%,rgba(23,15,22,.34)_66%,rgba(23,15,22,.58)_100%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_68%_44%,rgba(190,145,67,.18),transparent_25%),radial-gradient(circle_at_50%_58%,rgba(99,35,55,.24),transparent_43%)]" />
+        <div className="florencio-tech-grid pointer-events-none absolute inset-0" />
+        <div className="relative mx-auto grid min-h-[760px] max-w-7xl items-center gap-10 px-5 py-14 md:min-h-[840px] md:grid-cols-[1fr_0.9fr] md:px-8 md:py-20">
+          <div className="relative z-10 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-2 rounded-full border border-cream-hi/15 bg-black/20 px-3.5 py-2 text-[9px] tracking-[0.2em] text-cream-hi/80 uppercase backdrop-blur-md">
+                <span className="florencio-signal-dot" /> Florencio · IA Deluxury
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[8px] tracking-[0.22em] text-cream-hi/45 uppercase">
-                <CircleDot className="h-3 w-3 text-primary" /> activo
+              <span className="inline-flex items-center gap-1.5 text-[9px] tracking-[0.18em] text-cream-hi/55 uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-gold-soft" /> sistema activo
               </span>
             </div>
 
-            <p className="eyebrow !text-gold-soft">Asistente de regalo</p>
-            <h1 className="mt-4 max-w-3xl font-display text-5xl leading-[0.92] sm:text-6xl md:text-7xl">
-              Conoce a <span className="italic text-gold-soft">Florencio.</span>
+            <p className="mt-8 eyebrow !text-gold-soft">Asistente de regalos</p>
+            <h1 className="mt-4 max-w-3xl font-display text-5xl leading-[0.94] sm:text-6xl md:text-7xl">
+              Florencio, tu <span className="italic text-gold-soft">asistente.</span>
             </h1>
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-cream-hi/70 sm:text-lg">
-              Una experiencia que combina la calidez de nuestra mascota con un asistente que
-              interpreta lo que buscas, conoce el catálogo real y te acompaña hasta el carrito.
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-cream-hi/72 sm:text-lg">
+              Te ayuda a descubrir el regalo adecuado, cruza tus preferencias con el catálogo real y te acompaña hasta el carrito.
             </p>
 
-            <div className="mt-7 grid max-w-xl grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-              {["Entiende tu intención", "Cruza el catálogo", "Te ayuda a decidir", "No inventa productos"].map((item) => (
-                <div key={item} className="flex min-w-0 items-center gap-2 rounded-xl border border-cream-hi/10 bg-cream-hi/5 px-3 py-2 text-[9px] tracking-[0.08em] text-cream-hi/65">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  <span className="truncate">{item}</span>
+            <div className="mt-7 grid max-w-xl grid-cols-2 gap-2.5 sm:grid-cols-4">
+              {["Ocasión", "Destinatario", "Estilo", "Presupuesto"].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-cream-hi/10 bg-black/15 px-3 py-3 text-center text-[9px] tracking-[0.14em] text-cream-hi/70 uppercase backdrop-blur-sm"
+                >
+                  <span className="block text-gold-soft">{item}</span>
+                  <span className="mt-1 block text-[8px] tracking-normal text-cream-hi/42 normal-case">filtro útil</span>
                 </div>
               ))}
             </div>
@@ -131,150 +130,171 @@ function FlorencioPage() {
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new Event("florencio:open-chat"))}
-                className="press inline-flex items-center justify-center gap-2 rounded-full bg-primary px-7 py-4 text-[11px] tracking-[0.24em] text-primary-foreground uppercase"
+                className="press inline-flex items-center justify-center gap-2 rounded-full bg-primary px-7 py-4 text-[11px] tracking-[0.22em] text-primary-foreground uppercase shadow-[0_14px_40px_-18px_rgba(190,145,67,.9)]"
               >
                 <Bot className="h-4 w-4" /> Hablar con Florencio
               </button>
-              <a
-                href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, quiero conocer el servicio especial de Florencio.")}`}
-                target="_blank"
-                rel="noreferrer"
-                className="press inline-flex items-center justify-center gap-2 rounded-full border border-cream-hi/20 bg-cream-hi/5 px-7 py-4 text-[11px] tracking-[0.24em] text-cream-hi uppercase hover:border-gold-soft/60 hover:bg-cream-hi/10"
-              >
-                <MessageCircle className="h-4 w-4" /> WhatsApp
-              </a>
+              {enabled && (
+                <a
+                  href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, quiero conocer el domicilio especial con Florencio.")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="press inline-flex items-center justify-center gap-2 rounded-full border border-cream-hi/18 bg-black/20 px-7 py-4 text-[11px] tracking-[0.22em] text-cream-hi uppercase backdrop-blur-md hover:border-gold-soft/60"
+                >
+                  <MessageCircle className="h-4 w-4" /> WhatsApp
+                </a>
+              )}
+            </div>
+
+            <div className="mt-7 flex items-center gap-3 text-[9px] tracking-[0.12em] text-cream-hi/48 uppercase">
+              <WandSparkles className="h-3.5 w-3.5 text-gold-soft" />
+              funciona con IA y también en modo catálogo
             </div>
           </div>
 
-          <div className="order-1 md:order-2">
-            <div className="florencio-terminal relative mx-auto max-w-[540px] overflow-hidden rounded-[30px] border border-cream-hi/15 bg-black/35 p-2.5 shadow-[0_40px_110px_-55px_rgba(0,0,0,.9)] backdrop-blur-md sm:rounded-[34px] sm:p-3">
-              <div className="relative overflow-hidden rounded-[24px] border border-cream-hi/10 bg-foreground/72 sm:rounded-[28px]">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,.08),transparent_35%)]" />
-                <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-4 text-[8px] tracking-[0.22em] text-cream-hi/45 uppercase">
-                  <span>Florencio intelligence</span>
+          <div className="relative z-10 flex justify-center md:justify-end">
+            <div className="florencio-orb-shell relative w-full max-w-[460px] rounded-[32px] border border-cream-hi/15 bg-black/20 p-3 shadow-[0_35px_100px_-45px_rgba(0,0,0,.95)] backdrop-blur-sm sm:p-4">
+              <div className="relative min-h-[500px] overflow-hidden rounded-[25px] border border-cream-hi/10 bg-black/12 sm:min-h-[570px]">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,.08),transparent_35%)]" />
+                <div className="absolute inset-x-5 top-5 flex items-center justify-between text-[8px] tracking-[0.22em] text-cream-hi/44 uppercase">
+                  <span>Florencio Intelligence</span>
                   <span className="inline-flex items-center gap-1.5"><span className="florencio-signal-dot" /> Online</span>
                 </div>
 
-                <div className="relative flex min-h-[420px] items-center justify-center p-6 sm:min-h-[470px] sm:p-8 md:min-h-[540px]">
-                  <div className="florencio-ai-core pointer-events-none absolute inset-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full border border-gold-soft/15 sm:h-56 sm:w-56" />
-                  <div className="florencio-ai-core florencio-ai-core-2 pointer-events-none absolute inset-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cream-hi/10 sm:h-72 sm:w-72" />
-                  <div className="florencio-ai-pulse pointer-events-none absolute inset-1/2 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold-soft/10 sm:h-36 sm:w-36" />
+                <div className="relative flex min-h-[500px] items-center justify-center px-5 pt-12 pb-24 sm:min-h-[570px]">
+                  <div className="florencio-orbit-main pointer-events-none absolute inset-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-gold-soft/20" />
+                  <div className="florencio-orbit-main florencio-orbit-main-reverse pointer-events-none absolute inset-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cream-hi/10" />
+                  <div className="florencio-orb-glow pointer-events-none absolute inset-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold-soft/10 blur-2xl" />
+
                   <img
                     src={introImage}
                     alt="Florencio de Deluxury"
-                    className="relative z-10 h-[325px] w-auto max-w-[90%] object-contain drop-shadow-[0_30px_50px_rgba(0,0,0,.48)] sm:h-[380px] md:h-[450px]"
+                    className="relative z-10 h-[350px] w-auto max-w-[88%] object-contain sm:h-[430px]"
                   />
 
-                  <div className="absolute bottom-5 left-4 right-4 mx-auto max-w-[360px] rounded-2xl border border-cream-hi/10 bg-black/28 px-4 py-3 backdrop-blur-sm">
+                  <div className="absolute left-4 right-4 top-[28%] hidden sm:block">
+                    <div className="mx-auto max-w-[240px] rounded-2xl border border-cream-hi/10 bg-foreground/55 px-4 py-3 backdrop-blur-md">
+                      <p className="text-[8px] tracking-[0.18em] text-cream-hi/46 uppercase">Interpreto tu intención</p>
+                      <p className="mt-1 font-display text-lg">¿Qué quieres regalar?</p>
+                      <div className="mt-2 h-px bg-cream-hi/10"><span className="block h-full w-2/3 bg-gold-soft/70" /></div>
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-cream-hi/10 bg-foreground/72 p-4 backdrop-blur-xl">
                     <div className="flex items-center gap-3">
-                      <span className="florencio-avatar florencio-avatar-sm"><img src="/img/florencio.png" alt="" /></span>
+                      <span className="florencio-avatar florencio-avatar-sm"><img src={introImage} alt="" /></span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[8px] tracking-[0.18em] text-cream-hi/40 uppercase">Respuesta en curso</p>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className="florencio-thinking-dot" />
-                          <span className="florencio-thinking-dot" />
-                          <span className="florencio-thinking-dot" />
-                          <span className="ml-1 text-[10px] text-cream-hi/62">Estoy buscando la mejor coincidencia…</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[8px] tracking-[0.16em] text-cream-hi/42 uppercase">Estado</p>
+                          <p className="text-[8px] text-gold-soft">{signal}%</p>
+                        </div>
+                        <p className="mt-1 text-xs text-cream-hi/80">Listo para recomendar.</p>
+                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-cream-hi/10">
+                          <span className="florencio-signal-line block h-full bg-gold-soft/75" />
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                <div className="border-t border-cream-hi/10 bg-black/20 p-4">
-                  <div className="grid grid-cols-[1fr_auto] items-end gap-4">
-                    <div>
-                      <p className="text-[9px] tracking-[0.18em] text-cream-hi/45 uppercase">Estado del asistente</p>
-                      <p className="mt-1 font-display text-lg sm:text-xl">Listo para ayudarte.</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[8px] tracking-[0.16em] text-cream-hi/35 uppercase">Señal</p>
-                      <p className="mt-1 font-display text-lg text-gold-soft">{String(signal).padStart(2, "0")}%</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 h-px overflow-hidden rounded-full bg-cream-hi/10">
-                    <span className="florencio-ai-signal-line block h-full w-1/2 bg-gold-soft/70" />
-                  </div>
-                </div>
               </div>
             </div>
-            <p className="mt-3 text-center text-[8px] tracking-[0.22em] text-cream-hi/35 uppercase sm:text-[9px]">Un pequeño cerebro para una gran experiencia.</p>
           </div>
         </div>
       </section>
 
       <section className="border-b border-border py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
-          <div className="grid gap-7 md:grid-cols-[1.1fr_.9fr] md:items-end">
-            <div className="max-w-2xl">
-              <p className="eyebrow">Su lado inteligente</p>
-              <h2 className="mt-4 font-display text-4xl md:text-5xl">
-                Una ayuda que <span className="text-lux-gradient italic">sí conoce Deluxury.</span>
-              </h2>
-            </div>
-            <p className="text-sm leading-relaxed text-muted-foreground md:text-right">
-              Florencio convierte tus palabras en señales útiles para buscar dentro del catálogo real.
-            </p>
+          <div className="max-w-2xl">
+            <p className="eyebrow">Cómo funciona</p>
+            <h2 className="mt-4 font-display text-4xl leading-tight md:text-5xl">
+              Inteligencia útil, <span className="text-lux-gradient italic">sin complicarte.</span>
+            </h2>
           </div>
-
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
-              [WandSparkles, "Entiende intención", "Convierte una conversación en persona, ocasión, presupuesto, estilo y preferencias."],
-              [Sparkles, "Recomienda con criterio", "Prioriza productos reales del catálogo y explica por qué encajan."],
-              [Zap, "Te ayuda a decidir", "Compara opciones, responde dudas y te lleva directo al carrito."],
-            ].map(([Icon, title, copy]) => {
-              const I = Icon as typeof Sparkles;
-              return (
-                <article key={String(title)} className="relative overflow-hidden rounded-2xl border border-border bg-card/75 p-6 sm:p-7">
-                  <div className="absolute right-0 top-0 h-24 w-24 rounded-full bg-primary/10 blur-2xl" />
-                  <I className="relative h-5 w-5 text-primary" />
-                  <h3 className="relative mt-5 font-display text-2xl">{String(title)}</h3>
-                  <p className="relative mt-3 text-sm leading-relaxed text-muted-foreground">{String(copy)}</p>
-                </article>
-              );
-            })}
+              ["01", "Cuéntale lo que buscas", "Ocasión, persona, estilo, color o presupuesto."],
+              ["02", "Cruza el catálogo", "Filtra productos reales de Deluxury y prioriza coincidencias."],
+              ["03", "Elige y compra", "Abre el producto, añádelo al carrito y continúa la compra."],
+            ].map(([n, title, copy]) => (
+              <div key={n} className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm">
+                <p className="text-[10px] tracking-[0.24em] text-primary">{n}</p>
+                <h3 className="mt-5 font-display text-2xl">{title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{copy}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-primary/15 bg-secondary/40 p-5 md:p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-display text-xl">¿La IA no está disponible?</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    Florencio sigue funcionando con el catálogo: entiende frases sencillas, aplica filtros y muestra productos reales.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("florencio:open-chat"))}
+                className="press inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-border px-5 py-3 text-[10px] tracking-[0.18em] uppercase hover:border-primary"
+              >
+                Buscar en catálogo <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       {enabled && (
+        <section className="relative overflow-hidden border-b border-border bg-secondary/35 py-20 md:py-28">
+          <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[1fr_.8fr] md:items-center md:px-8">
+            <div className="max-w-2xl">
+              <p className="eyebrow">Servicio especial</p>
+              <h2 className="mt-4 font-display text-4xl leading-tight md:text-5xl">
+                Domicilio <span className="italic text-lux-gradient">con Florencio.</span>
+              </h2>
+              <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">{serviceCopy}</p>
+              <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4 text-primary" /> Entrega especial</span>
+                <span className="inline-flex items-center gap-2"><Check className="h-4 w-4 text-primary" /> Opción configurable</span>
+                <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Momento memorable</span>
+              </div>
+            </div>
+            <div className="surface-glass rounded-3xl p-6 md:p-8">
+              <p className="eyebrow">Tarifa configurada</p>
+              <p className="mt-3 font-display text-4xl text-primary">
+                {price > 0 ? formatMoney(price, currency, trm) : "Consultar"}
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Selecciona esta opción al comprar o escríbenos por WhatsApp para coordinarla.</p>
+              <a
+                href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, quiero solicitar el domicilio especial con Florencio.")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="press mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 text-[10px] tracking-[0.2em] text-primary-foreground uppercase"
+              >
+                <MessageCircle className="h-4 w-4" /> Coordinar por WhatsApp
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {suggested.length > 0 && (
         <section className="border-b border-border py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-5 md:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+            <div className="flex flex-wrap items-end justify-between gap-5">
               <div>
-                <p className="eyebrow">Servicio extra</p>
-                <h2 className="mt-4 font-display text-4xl md:text-5xl">
-                  Entrega especial con <span className="text-lux-gradient italic">Florencio.</span>
-                </h2>
-                <p className="mt-5 text-base leading-relaxed text-muted-foreground">{serviceCopy}</p>
-                <div className="mt-7 flex flex-wrap items-center gap-3">
-                  <Truck className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Tarifa {price > 0 ? <strong>{new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(price)}</strong> : <strong>configurable desde el panel</strong>}</span>
-                </div>
-                <a
-                  href={`https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, quisiera agregar la entrega especial con Florencio a mi pedido.")}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="press mt-7 inline-flex items-center gap-2 bg-foreground px-7 py-3.5 text-[11px] tracking-[0.24em] text-cream-hi uppercase hover:bg-primary"
-                >
-                  <MessageCircle className="h-4 w-4" /> Consultar disponibilidad
-                </a>
+                <p className="eyebrow">Florencio recomienda</p>
+                <h2 className="mt-4 font-display text-4xl md:text-5xl">Piezas para empezar.</h2>
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  [Heart, "Acompaña la sorpresa"],
-                  [MessageCircle, "Coordinación por WhatsApp"],
-                  [Truck, "Servicio opcional"],
-                ].map(([Icon, title]) => {
-                  const I = Icon as typeof Heart;
-                  return (
-                    <div key={String(title)} className="surface-glass rounded-2xl p-6">
-                      <I className="h-4 w-4 text-primary" />
-                      <p className="mt-5 font-display text-xl">{String(title)}</p>
-                    </div>
-                  );
-                })}
-              </div>
+              <Link to="/catalogo" className="press inline-flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase hover:text-primary">
+                Ver catálogo <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <div className="mt-10 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-7">
+              {suggested.map((product, i) => <ProductCard key={product.id} product={product} index={i} />)}
             </div>
           </div>
         </section>
@@ -283,33 +303,21 @@ function FlorencioPage() {
       {media.length > 0 && (
         <section className="border-b border-border py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-5 md:px-8">
-            <div className="flex flex-wrap items-end justify-between gap-6">
-              <div>
-                <p className="eyebrow">Florencio detrás de escena</p>
-                <h2 className="mt-4 font-display text-4xl md:text-5xl">Momentos de <span className="text-lux-gradient italic">Florencio.</span></h2>
-              </div>
-              <Instagram className="h-5 w-5 text-primary" />
-            </div>
-            <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {media.map((item, index) => (
+            <p className="eyebrow">Más de Florencio</p>
+            <h2 className="mt-4 font-display text-4xl md:text-5xl">Su universo.</h2>
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {media.map((item, i) => (
                 <a
-                  key={`${item.url}-${index}`}
+                  key={`${item.url}-${i}`}
                   href={item.link || item.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="group relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary/30"
+                  className="group overflow-hidden rounded-3xl border border-border bg-secondary"
                 >
-                  {item.type === "image" ? (
-                    <img src={item.url} alt={item.caption || "Florencio"} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]" />
-                  ) : (
-                    <div className="h-full w-full bg-[radial-gradient(circle_at_50%_30%,var(--rose-glow),transparent_65%)] p-5">
-                      <div className="flex h-full flex-col justify-end">
-                        <p className="text-[10px] tracking-[0.22em] text-primary uppercase">Reel de Instagram</p>
-                        <p className="mt-2 font-display text-2xl">{item.caption || "Ver momento de Florencio"}</p>
-                        <ArrowRight className="mt-5 h-4 w-4 text-primary" />
-                      </div>
-                    </div>
-                  )}
+                  <div className="aspect-[4/5] overflow-hidden">
+                    <img src={item.url} alt={item.caption || "Florencio de Deluxury"} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+                  </div>
+                  {item.caption && <p className="p-4 text-sm text-muted-foreground">{item.caption}</p>}
                 </a>
               ))}
             </div>
@@ -317,15 +325,16 @@ function FlorencioPage() {
         </section>
       )}
 
-      {suggested.length > 0 && (
-        <section className="py-20 md:py-28">
-          <div className="mx-auto max-w-7xl px-5 md:px-8">
-            <p className="eyebrow">Florencio recomienda</p>
-            <h2 className="mt-4 font-display text-4xl md:text-5xl">Algunas piezas que <span className="text-lux-gradient italic">le encantan.</span></h2>
-            <div className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-7 lg:grid-cols-3">{suggested.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}</div>
-          </div>
-        </section>
-      )}
+      <section className="bg-secondary/40 py-16 md:py-20">
+        <div className="mx-auto flex max-w-4xl flex-col items-center px-5 text-center">
+          <p className="eyebrow">Un detalle empieza con una buena idea</p>
+          <h2 className="mt-4 font-display text-4xl md:text-5xl">Habla con Florencio.</h2>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">Cuéntale lo que necesitas y déjalo ayudarte a decidir.</p>
+          <button type="button" onClick={() => window.dispatchEvent(new Event("florencio:open-chat"))} className="press mt-7 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-4 text-[10px] tracking-[0.22em] text-primary-foreground uppercase">
+            Abrir asistente <Bot className="h-4 w-4" />
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export const Route = createFileRoute("/checkout")({
 const SLOTS = ["9:00 – 12:00", "12:00 – 15:00", "15:00 – 18:00", "18:00 – 20:00"];
 
 function Checkout() {
-  const { lines, subtotal, clear, currency } = useStore();
+  const { lines, subtotal, clear, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
   const { data: settings } = useQuery(settingsQuery);
   const [sending, setSending] = useState(false);
   const [form, setForm] = useState({
@@ -49,7 +49,9 @@ function Checkout() {
   const shipping = Number(settings?.["shipping_cop"] ?? 18000);
   const freeFrom = Number(settings?.["free_shipping_from_cop"] ?? 350000);
   const shippingDue = subtotal >= freeFrom ? 0 : shipping;
-  const total = subtotal + shippingDue;
+  const florencioEnabled = settings?.["florencio_delivery_enabled"] !== "false";
+  const florencioFee = florencioEnabled && deliveryWithFlorencio ? Number(settings?.["florencio_delivery_price_cop"] ?? 0) : 0;
+  const total = subtotal + shippingDue + florencioFee;
   const whatsapp = settings?.["whatsapp_number"] ?? "573006301123";
 
   const set = (key: keyof typeof form, value: string) =>
@@ -77,7 +79,7 @@ function Checkout() {
       delivery_date: form.delivery_date || null,
       delivery_slot: form.delivery_slot,
       dedication: form.dedication || null,
-      notes: form.notes || null,
+      notes: [form.notes, deliveryWithFlorencio ? `Domicilio especial con Florencio${florencioFee ? `: +${florencioFee}` : ""}` : ""].filter(Boolean).join(" · ") || null,
       items: lines.map((l) => ({
         product_id: l.product_id,
         name: l.name,
@@ -112,6 +114,7 @@ function Checkout() {
       "",
       `Subtotal: ${formatMoney(subtotal, "COP", trm)}`,
       `Envío: ${shippingDue === 0 ? "Cortesía" : formatMoney(shippingDue, "COP", trm)}`,
+      ...(deliveryWithFlorencio ? [`Domicilio con Florencio: ${florencioFee ? formatMoney(florencioFee, "COP", trm) : "A coordinar"}`] : []),
       `*Total: ${formatMoney(total, "COP", trm)}*`,
       "",
       `Cliente: ${form.customer_name} (${form.customer_phone})`,
@@ -125,6 +128,7 @@ function Checkout() {
       .join("\n");
 
     clear();
+    setDeliveryWithFlorencio(false);
     toast.success(`Pedido ${orderNumber} registrado. Te llevamos a WhatsApp.`);
     window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`, "_blank");
   };
@@ -219,6 +223,16 @@ function Checkout() {
                 </div>
               </fieldset>
 
+              {florencioEnabled && (
+                <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-primary/20 bg-secondary/35 p-4">
+                  <input type="checkbox" checked={deliveryWithFlorencio} onChange={(e) => setDeliveryWithFlorencio(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--primary)]" />
+                  <span className="min-w-0 flex-1">
+                    <span className="font-medium">Domicilio especial con Florencio</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">{florencioFee > 0 ? `Suma ${formatMoney(florencioFee, currency, trm)} al total.` : "Tarifa a coordinar."}</span>
+                  </span>
+                </label>
+              )}
+
               <fieldset className="space-y-4">
                 <legend className="eyebrow mb-3">Detalles</legend>
                 <textarea
@@ -279,6 +293,12 @@ function Checkout() {
                     {shippingDue === 0 ? "Cortesía" : formatMoney(shippingDue, currency, trm)}
                   </span>
                 </div>
+                {deliveryWithFlorencio && (
+                  <div className="flex justify-between">
+                    <span>Domicilio con Florencio</span>
+                    <span>{florencioFee ? formatMoney(florencioFee, currency, trm) : "A coordinar"}</span>
+                  </div>
+                )}
               </div>
               <div className="mt-5 flex items-baseline justify-between">
                 <span className="eyebrow">Total</span>

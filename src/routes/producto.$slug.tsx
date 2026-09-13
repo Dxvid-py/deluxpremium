@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check, Minus, Plus, Truck } from "lucide-react";
+import { Check, Minus, Plus, Truck, Sparkles } from "lucide-react";
 import { productsQuery, settingsQuery } from "@/lib/queries";
 import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
@@ -32,11 +32,13 @@ function ProductDetail() {
   const { slug } = Route.useParams();
   const { data: products } = useQuery(productsQuery);
   const { data: settings } = useQuery(settingsQuery);
-  const { add, currency } = useStore();
+  const { add, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
   const [qty, setQty] = useState(1);
   const [imgIndex, setImgIndex] = useState(0);
 
   const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
+  const florencioEnabled = settings?.["florencio_delivery_enabled"] !== "false";
+  const florencioPrice = Number(settings?.["florencio_delivery_price_cop"] ?? 0);
   const product = (products ?? []).find((p) => p.slug === slug);
   const related = (products ?? [])
     .filter((p) => p.id !== product?.id && p.category_id === product?.category_id)
@@ -118,6 +120,24 @@ function ProductDetail() {
               <Truck className="h-4 w-4 text-primary" /> Entrega el mismo día en Barranquilla
             </li>
           </ul>
+
+          {florencioEnabled && (
+            <label className="mt-8 flex cursor-pointer items-start gap-4 rounded-2xl border border-primary/20 bg-secondary/45 p-4 transition-colors hover:border-primary/45">
+              <input
+                type="checkbox"
+                checked={deliveryWithFlorencio}
+                onChange={(e) => setDeliveryWithFlorencio(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-[var(--primary)]"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2 font-medium">
+                  <Sparkles className="h-4 w-4 text-primary" /> Domicilio especial con Florencio
+                  <span className="text-xs text-primary">{florencioPrice > 0 ? `+ ${formatMoney(florencioPrice, currency, trm)}` : "Consultar"}</span>
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Florencio puede acompañar personalmente la entrega de este pedido.</span>
+              </span>
+            </label>
+          )}
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <div className="flex items-center rounded-full border border-border">
