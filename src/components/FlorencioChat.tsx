@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
 import { useContentTranslator } from "@/lib/i18n";
 import { describeFlorencioFilters, parseFlorencioFilters, rankFlorencioProducts, type FlorencioFilters } from "@/lib/florencio-recommendations";
+import { askFlorencioAI } from "@/lib/florencio-ai";
 
 const QUICK_PROMPTS = [
   "Quiero un regalo para mi pareja",
@@ -54,6 +55,7 @@ export default function FlorencioChat() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [filters, setFilters] = useState<FlorencioFilters>({ keywords: [] });
+  const [thinking, setThinking] = useState(false);
   const nextId = useRef(1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const { add } = useStore();
@@ -91,27 +93,58 @@ export default function FlorencioChat() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  const send = (raw: string) => {
+  const send = async (raw: string) => {
     const text = raw.trim();
-    if (!text) return;
-    const nextFilters = parseFlorencioFilters(text);
-    const merged: FlorencioFilters = {
-      recipient: nextFilters.recipient ?? filters.recipient,
-      occasion: nextFilters.occasion ?? filters.occasion,
-      style: nextFilters.style ?? filters.style,
-      color: nextFilters.color ?? filters.color,
-      budgetMax: nextFilters.budgetMax ?? filters.budgetMax,
-      keywords: Array.from(new Set([...filters.keywords, ...nextFilters.keywords])).slice(0, 12),
-    };
-    setFilters(merged);
+    if (!text || thinking) return;
+
     setMessages((prev) => [...prev, { id: nextId.current++, role: "user", text }]);
     setInput("");
+    setThinking(true);
 
-    const parts = describeFlorencioFilters(merged);
-    const reply = parts.length
-      ? `Perfecto. Ya voy entendiendo: ${parts.join(" · ")}. Déjame cruzarlo con las piezas disponibles en nuestro catálogo. 🌷`
-      : "Perfecto. Voy a tomar eso como punto de partida y buscar coincidencias dentro del catálogo real de Deluxury. ✨";
-    window.setTimeout(() => setMessages((prev) => [...prev, { id: nextId.current++, role: "florencio", text: reply }]), 220);
+    try {
+      const result = await askFlorencioAI({
+        message: text,
+        history: messages.slice(-8).map(({ role, text: messageText }) => ({ role, text: messageText })),
+        currentFilters: filters,
+      });
+
+      const localFallback = parseFlorencioFilters(text);
+      const merged: FlorencioFilters = {
+        recipient: result.filters.recipient ?? localFallback.recipient ?? filters.recipient,
+        occasion: result.filters.occasion ?? localFallback.occasion ?? filters.occasion,
+        style: result.filters.style ?? localFallback.style ?? filters.style,
+        color: result.filters.color ?? localFallback.color ?? filters.color,
+        budgetMax: result.filters.budgetMax ?? localFallback.budgetMax ?? filters.budgetMax,
+        keywords: Array.from(new Set([
+          ...filters.keywords,
+          ...localFallback.keywords,
+          ...(result.keywords ?? []),
+          ...(result.filters.keywords ?? []),
+        ])).slice(0, 16),
+      };
+      setFilters(merged);
+      setMessages((prev) => [...prev, { id: nextId.current++, role: "florencio", text: result.reply }]);
+    } catch (error) {
+      // Si la IA no está configurada, Florencio sigue funcionando con el motor local V2.
+      const parsed = parseFlorencioFilters(text);
+      const merged: FlorencioFilters = {
+        recipient: parsed.recipient ?? filters.recipient,
+        occasion: parsed.occasion ?? filters.occasion,
+        style: parsed.style ?? filters.style,
+        color: parsed.color ?? filters.color,
+        budgetMax: parsed.budgetMax ?? filters.budgetMax,
+        keywords: Array.from(new Set([...filters.keywords, ...parsed.keywords])).slice(0, 16),
+      };
+      setFilters(merged);
+      const parts = describeFlorencioFilters(merged);
+      const reply = parts.length
+        ? `Entendido. ${parts.join(" · ")}. Voy a cruzarlo con nuestro catálogo real. 🌷`
+        : "Entendido. Voy a tomar eso como punto de partida y buscar coincidencias en el catálogo real de Deluxury. ✨";
+      setMessages((prev) => [...prev, { id: nextId.current++, role: "florencio", text: reply }]);
+      console.warn("Florencio AI no disponible; usando modo local.", error);
+    } finally {
+      setThinking(false);
+    }
   };
 
   const addRecommended = (product: Product) => {
@@ -155,6 +188,10 @@ export default function FlorencioChat() {
             </div>
           ))}
 
+          {thinking && (
+            <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground"><span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" /> Florencio está pensando…</div>
+          )}
+
           {recommendations.length > 0 && messages.length > 1 && (
             <div className="space-y-2.5 pt-1">
               <div className="flex items-center gap-2 px-1 text-[9px] tracking-[0.18em] text-muted-foreground uppercase"><Sparkles className="h-3 w-3 text-primary" /> Mis recomendaciones</div>
@@ -175,7 +212,7 @@ export default function FlorencioChat() {
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 rounded-2xl border border-border bg-secondary/35 p-1.5 focus-within:border-primary/50">
             <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Escríbele a Florencio…" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none" />
-            <button type="submit" aria-label="Enviar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" disabled={!input.trim()}><Send className="h-4 w-4" /></button>
+            <button type="submit" aria-label="Enviar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" disabled={!input.trim() || thinking}><Send className="h-4 w-4" /></button>
           </form>
           <p className="mt-2 text-center text-[8px] tracking-[0.1em] text-muted-foreground uppercase"><Bot className="mr-1 inline h-3 w-3" /> Recomendaciones basadas en el catálogo real</p>
         </div>
