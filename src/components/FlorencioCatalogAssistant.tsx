@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
   ChevronLeft,
   Heart,
   Image as ImageIcon,
@@ -190,6 +192,36 @@ export default function FlorencioCatalogAssistant() {
 
   if (!authReady) return <div className="flex min-h-[72vh] items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" /></div>;
 
+  if (isCatalogPage && !catalogChatOpen) {
+    return (
+      <section className="relative overflow-hidden rounded-2xl border border-primary/15 bg-[#fffaf2]/95 shadow-[0_25px_70px_-45px_rgba(62,37,20,.38)]">
+        <div className="flex items-center justify-between gap-4 px-4 py-3.5 sm:px-5">
+          <button
+            type="button"
+            onClick={() => setCatalogChatOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            aria-expanded="false"
+            aria-controls="catalog-florencio-chat"
+          >
+            <Avatar src={profileImage} size="sm" />
+            <span className="min-w-0">
+              <span className="block font-display text-xl leading-none">Habla con Florencio</span>
+              <span className="mt-1 block truncate text-[9px] tracking-[.12em] text-muted-foreground uppercase">Tu asesor floral · recomendaciones del catálogo</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setCatalogChatOpen(true)}
+            aria-label="Desplegar chat de Florencio"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-white transition hover:border-primary/40 hover:text-primary"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return <section className="relative overflow-hidden rounded-[30px] border border-primary/15 bg-white/85 shadow-[0_38px_110px_-60px_rgba(62,37,20,.5)] backdrop-blur-xl">
     <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(138,101,59,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(138,101,59,.035)_1px,transparent_1px)] [background-size:42px_42px]" />
     <div className="relative min-h-[780px] lg:grid lg:grid-cols-[228px_minmax(0,1fr)]">
@@ -207,9 +239,9 @@ export default function FlorencioCatalogAssistant() {
       </div>
 
       <main className="flex min-h-[780px] min-w-0 flex-col">
-        <header className="flex shrink-0 items-center justify-between border-b border-border/80 bg-white/75 px-4 py-4 sm:px-6 lg:px-7">
+        <header id={isCatalogPage ? "catalog-florencio-chat" : undefined} className="flex shrink-0 items-center justify-between border-b border-border/80 bg-white/75 px-4 py-4 sm:px-6 lg:px-7">
           <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMobileMenu(true)} className="rounded-xl border border-border p-2 lg:hidden" aria-label="Abrir menú"><Menu className="h-5 w-5" /></button><Avatar src={profileImage} size="sm" /><div className="min-w-0"><div className="flex items-center gap-2"><p className="font-display text-xl">Florencio</p><span className="hidden rounded-full bg-primary/10 px-2 py-1 text-[8px] tracking-[.12em] text-primary uppercase sm:inline">IA floral</span></div><p className="truncate text-[9px] text-muted-foreground sm:text-xs">{tabs.find((x) => x.id === activeTab)?.label}</p></div></div>
-          <div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Vista previa"}</div>
+          <div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Vista previa"}</div>{isCatalogPage && <button type="button" onClick={() => setCatalogChatOpen(false)} aria-label="Cerrar chat desplegable" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>}</div>
         </header>
 
         {activeTab === "chat" && <div className="flex min-h-0 flex-1 flex-col">
