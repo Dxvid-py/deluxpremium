@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Check, Minus, Plus, Truck, Sparkles } from "lucide-react";
@@ -32,7 +32,8 @@ function ProductDetail() {
   const { slug } = Route.useParams();
   const { data: products } = useQuery(productsQuery);
   const { data: settings } = useQuery(settingsQuery);
-  const { add, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
+  const { add, buyNow, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
+  const navigate = useNavigate();
   const [qty, setQty] = useState(1);
   const [imgIndex, setImgIndex] = useState(0);
 
@@ -139,30 +140,14 @@ function ProductDetail() {
             </label>
           )}
 
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <div className="flex items-center rounded-full border border-border">
-              <button
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                aria-label="Menos"
-                className="px-4 py-3"
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </button>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center self-start rounded-full border border-border">
+              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Menos" className="px-4 py-3"><Minus className="h-3.5 w-3.5" /></button>
               <span className="min-w-8 text-center text-sm">{qty}</span>
-              <button
-                onClick={() => setQty((q) => Math.min(20, q + 1))}
-                aria-label="Más"
-                className="px-4 py-3"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+              <button onClick={() => setQty((q) => Math.min(20, q + 1))} aria-label="Más" className="px-4 py-3"><Plus className="h-3.5 w-3.5" /></button>
             </div>
-            <button
-              onClick={() => add(product, qty)}
-              className="flex-1 bg-primary px-8 py-4 text-[11px] tracking-[0.26em] text-primary-foreground uppercase transition-opacity hover:opacity-90 sm:flex-none"
-            >
-              Añadir al carrito
-            </button>
+            <button onClick={() => add(product, qty)} className="flex-1 border border-primary bg-transparent px-7 py-4 text-[11px] tracking-[.24em] text-primary uppercase transition-colors hover:bg-primary hover:text-primary-foreground sm:flex-none">Agregar al carrito</button>
+            <button onClick={() => { buyNow(product, qty); navigate({ to: "/checkout" }); }} className="flex-1 bg-primary px-7 py-4 text-[11px] tracking-[.24em] text-primary-foreground uppercase transition-opacity hover:opacity-90 sm:flex-none">Comprar ahora</button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
             {product.stock > 0 ? `${product.stock} unidades disponibles` : "Bajo pedido"}

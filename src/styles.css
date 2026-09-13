@@ -1329,3 +1329,19 @@ article {
     animation: none !important;
   }
 }
+
+
+/* Florencio page: the dedicated full-screen experience replaces the floating widget. */
+body.florencio-page [aria-live="polite"] { display: none !important; }
+
+.florencio-chat-stage { min-height: calc(100svh - 7rem); }
+.florencio-stage-grain {
+  opacity: .16;
+  background-image: radial-gradient(rgba(255,255,255,.22) .6px, transparent .6px);
+  background-size: 5px 5px;
+  mix-blend-mode: soft-light;
+}
+
+@media (max-width: 767px) {
+  .florencio-chat-stage { min-height: auto; }
+}

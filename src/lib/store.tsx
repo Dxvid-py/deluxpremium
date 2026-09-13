@@ -17,6 +17,7 @@ type StoreValue = {
   count: number;
   subtotal: number;
   add: (product: Product, qty?: number) => void;
+  buyNow: (product: Product, qty?: number) => void;
   remove: (productId: string) => void;
   setQty: (productId: string, qty: number) => void;
   clear: () => void;
@@ -97,6 +98,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCartOpen(true);
   }, []);
 
+  const buyNow = useCallback((product: Product, qty = 1) => {
+    setLines([{
+      product_id: product.id,
+      name: product.name,
+      slug: product.slug,
+      image: product.images?.[0] ?? "",
+      price_cop: Number(product.price_cop),
+      qty: Math.min(Math.max(1, qty), 20),
+    }]);
+    setCartOpen(false);
+  }, []);
+
   const remove = useCallback((productId: string) => {
     setLines((prev) => prev.filter((l) => l.product_id !== productId));
   }, []);
@@ -119,6 +132,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       count,
       subtotal,
       add,
+      buyNow,
       remove,
       setQty,
       clear,
@@ -129,7 +143,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deliveryWithFlorencio,
       setDeliveryWithFlorencio,
     };
-  }, [lines, add, remove, setQty, clear, cartOpen, currency, setCurrency, deliveryWithFlorencio, setDeliveryWithFlorencio]);
+  }, [lines, add, buyNow, remove, setQty, clear, cartOpen, currency, setCurrency, deliveryWithFlorencio, setDeliveryWithFlorencio]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
