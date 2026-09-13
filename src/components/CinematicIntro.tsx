@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Volume2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import PetalCanvas from "./PetalCanvas";
 import { useI18n } from "@/lib/i18n";
@@ -13,7 +12,6 @@ export default function CinematicIntro() {
   const { data: settings } = useQuery(settingsQuery);
   const [stage, setStage] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const enabled = settings?.["intro_audio_enabled"] !== "false";
@@ -29,93 +27,83 @@ export default function CinematicIntro() {
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  // La intro empieza inmediatamente. El navegador puede bloquear el audio con sonido;
-  // por eso se inicia en silencio y se ofrece activarlo sin detener la animación.
+  // La intro empieza inmediatamente e intentamos reproducir el audio con sonido.
+  // Si el navegador bloquea autoplay con sonido, no mostramos ningún botón: la
+  // intro continúa normalmente. El bloqueo lo decide el navegador, no la web.
   useEffect(() => {
     if (!mounted || !enabled || !audioRef.current) return;
     const audio = audioRef.current;
     audio.currentTime = 0;
     audio.volume = 0.6;
-    audio.muted = true;
+    audio.muted = false;
     void audio.play().catch(() => {});
     return () => audio.pause();
   }, [mounted, enabled]);
 
+  // Pre-carga la imagen editable de fondo para que empiece a descargarse
+  // cuanto antes, sin cambiar la duración de la intro.
+  useEffect(() => {
+    if (!mounted || !backgroundImage) return;
+    const image = new Image();
+    image.decoding = "async";
+    image.src = backgroundImage;
+  }, [mounted, backgroundImage]);
+
   useEffect(() => {
     if (!mounted) return;
     const timers = [
-      window.setTimeout(() => setStage(1), 100),
-      window.setTimeout(() => setStage(2), 650),
-      window.setTimeout(() => setStage(3), 1500),
-      window.setTimeout(() => setStage(4), 2700),
-      window.setTimeout(() => setStage(5), 4100),
+      window.setTimeout(() => setStage(1), 180),
+      window.setTimeout(() => setStage(2), 900),
+      window.setTimeout(() => setStage(3), 2100),
+      window.setTimeout(() => setStage(4), 3600),
+      window.setTimeout(() => setStage(5), 5200),
       window.setTimeout(() => {
         setMounted(false);
         document.body.style.overflow = "";
         try { sessionStorage.setItem(SEEN_KEY, "1"); } catch {}
-      }, 5000),
+      }, 6200),
     ];
     return () => timers.forEach(window.clearTimeout);
   }, [mounted]);
-
-  const activateSound = async () => {
-    const audio = audioRef.current;
-    if (!audio || !enabled) return;
-    try {
-      audio.muted = false;
-      audio.volume = 0.6;
-      await audio.play();
-      setSoundEnabled(true);
-    } catch {}
-  };
 
   if (!mounted) return null;
 
   return (
     <div className={`fixed inset-0 z-[100] overflow-hidden bg-background transition-opacity duration-700 ${stage >= 5 ? "pointer-events-none opacity-0" : "opacity-100"}`}>
-      <div
-        className={`absolute inset-0 bg-cover bg-center transition-all duration-[750ms] ease-out ${stage >= 4 ? "scale-100 opacity-45" : "scale-110 opacity-0"}`}
-        style={{ backgroundImage: `url(${backgroundImage})` }}
+      <img
+        src={backgroundImage}
+        alt=""
+        aria-hidden="true"
+        fetchPriority="high"
+        decoding="async"
+        className={`absolute inset-0 h-full w-full object-cover object-center transition-all duration-[1800ms] ease-out ${stage >= 4 ? "scale-100 opacity-45" : "scale-110 opacity-0"}`}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
       <div className="diffused-light absolute inset-0" />
       <PetalCanvas density={36} speed={1.05} burst />
 
       <div className="relative flex h-full flex-col items-center justify-center px-5 text-center sm:px-6">
-        <div className={`relative transition-all duration-[750ms] ease-out ${stage >= 2 ? "scale-100 opacity-100 blur-0" : "scale-90 opacity-0 blur-lg"}`}>
+        <div className={`relative transition-all duration-[1200ms] ease-out ${stage >= 2 ? "scale-100 opacity-100 blur-0" : "scale-90 opacity-0 blur-lg"}`}>
           <span className={`pointer-events-none absolute -inset-20 rounded-full bg-[radial-gradient(circle,var(--rose-glow),transparent_65%)] ${stage >= 2 ? "aura-ring" : "opacity-0"}`} />
           <img src="/logo.png" alt="Floristería Deluxury" className="relative h-28 w-auto sm:h-40 md:h-52" />
         </div>
 
-        <p className={`eyebrow mt-8 transition-all duration-600 sm:mt-10 ${stage >= 3 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
+        <p className={`eyebrow mt-8 transition-all duration-1000 sm:mt-10 ${stage >= 3 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
           {t("intro.location")}
         </p>
 
-        <h1 className={`mt-4 font-display text-4xl leading-[1.02] transition-all duration-[750ms] sm:text-6xl md:text-7xl ${stage >= 3 ? "translate-y-0 opacity-100 blur-0" : "translate-y-6 opacity-0 blur-md"}`}>
+        <h1 className={`mt-4 font-display text-4xl leading-[1.02] transition-all duration-[1200ms] sm:text-6xl md:text-7xl ${stage >= 3 ? "translate-y-0 opacity-100 blur-0" : "translate-y-6 opacity-0 blur-md"}`}>
           <span className="text-lux-gradient block">Floristería</span>
           <span className="text-lux-gradient mt-1 block tracking-[0.14em]">Deluxury</span>
         </h1>
 
-        <div className={`hairline mt-7 transition-all duration-600 ${stage >= 4 ? "w-48 opacity-100 sm:w-56" : "w-0 opacity-0"}`} />
-        <p className={`mt-5 max-w-md text-sm font-light leading-relaxed text-muted-foreground transition-all duration-600 ${stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
+        <div className={`hairline mt-7 transition-all duration-1000 ${stage >= 4 ? "w-48 opacity-100 sm:w-56" : "w-0 opacity-0"}`} />
+        <p className={`mt-5 max-w-md text-sm font-light leading-relaxed text-muted-foreground transition-all duration-1000 ${stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
           {t("intro.tagline")}
         </p>
       </div>
 
-      {enabled && !soundEnabled && (
-        <button type="button" onClick={() => void activateSound()} aria-label="Activar sonido de la introducción"
-          className="absolute bottom-7 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/35 bg-background/75 px-5 py-3 text-[10px] font-medium tracking-[0.18em] text-foreground uppercase shadow-xl backdrop-blur-md transition hover:border-primary hover:bg-background/90">
-          <Volume2 className="h-4 w-4" /> Activar sonido
-        </button>
-      )}
-
-      {enabled && soundEnabled && (
-        <div className="absolute bottom-7 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/20 bg-background/50 px-4 py-2 text-[9px] tracking-[0.16em] text-muted-foreground uppercase backdrop-blur-md">
-          <Volume2 className="h-3.5 w-3.5" /> Sonido activado
-        </div>
-      )}
-
-      {enabled && <audio ref={audioRef} src={audioSrc} preload="auto" playsInline muted />}
+      {enabled && <audio ref={audioRef} src={audioSrc} preload="auto" playsInline />}
     </div>
   );
 }
