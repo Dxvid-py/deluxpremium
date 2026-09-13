@@ -8,7 +8,7 @@ import {
   Sparkles,
   WandSparkles,
 } from "lucide-react";
-import FlorencioChat from "@/components/FlorencioChat";
+import FlorencioCatalogAssistant from "@/components/FlorencioCatalogAssistant";
 
 export const Route = createFileRoute("/florencio")({
   head: () => ({
@@ -143,7 +143,7 @@ function FlorencioPage() {
             </div>
           </div>
 
-          <FlorencioChat embedded />
+          <FlorencioCatalogAssistant />
         </div>
       </section>
 
