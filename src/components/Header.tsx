@@ -79,15 +79,15 @@ export default function Header() {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
-        scrolled ? "surface-glass py-3" : "py-6"
+        scrolled ? "surface-glass py-3" : "py-4 md:py-6"
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8">
+      <div className="mx-auto flex min-w-0 max-w-7xl items-center justify-between gap-2 px-3.5 sm:px-5 md:px-8">
         <Link to="/" className="press group flex items-center">
           <img
             src="/logo.png"
             alt="Floristería Deluxury"
-            className="h-11 w-auto transition-transform duration-700 group-hover:scale-105 sm:h-14"
+            className="h-9 w-auto max-w-[118px] transition-transform duration-700 group-hover:scale-105 sm:h-11 sm:max-w-none md:h-14"
           />
         </Link>
 
@@ -105,7 +105,7 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5 md:gap-3">
           <div className={`hidden items-center rounded-full border p-0.5 md:flex ${hairBorder}`}>
             {(["es", "en"] as const).map((l) => (
               <button
@@ -140,7 +140,7 @@ export default function Header() {
             to="/cuenta"
             aria-label={session ? t("nav.account") : t("auth.signIn")}
             title={session ? session.user.email : t("auth.signIn")}
-            className={`press relative flex h-9 items-center gap-2 rounded-full border px-3 transition-colors hover:border-primary/60 hover:bg-primary/10 ${hairBorder} ${iconText}`}
+            className={`press relative flex h-9 shrink-0 items-center gap-2 rounded-full border px-2.5 transition-colors hover:border-primary/60 hover:bg-primary/10 ${hairBorder} ${iconText}`}
             activeProps={{ className: "border-primary text-primary" }}
           >
             {session ? (
@@ -158,7 +158,7 @@ export default function Header() {
           <button
             onClick={() => setCartOpen(true)}
             aria-label={t("cta.cart")}
-            className={`press relative rounded-full border p-2.5 transition-colors hover:border-primary/60 hover:bg-primary/10 ${hairBorder}`}
+            className={`press relative shrink-0 rounded-full border p-2 transition-colors hover:border-primary/60 hover:bg-primary/10 ${hairBorder}`}
           >
             <ShoppingBag className={`h-4 w-4 ${iconText} ${pop ? "animate-cart-pop" : ""}`} />
             {count > 0 && (
@@ -171,7 +171,7 @@ export default function Header() {
           <button
             onClick={() => setOpen((v) => !v)}
             aria-label={t("cta.menu")}
-            className={`press rounded-full border p-2.5 lg:hidden ${hairBorder} ${iconText}`}
+            className={`press shrink-0 rounded-full border p-2 lg:hidden ${hairBorder} ${iconText}`}
           >
             {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
@@ -179,7 +179,7 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className="surface-glass mt-3 animate-[anim-fade-down_0.5s_cubic-bezier(0.16,1,0.3,1)] lg:hidden">
+        <div className="surface-glass mt-2 max-h-[calc(100dvh-84px)] overflow-y-auto overscroll-contain animate-[anim-fade-down_0.5s_cubic-bezier(0.16,1,0.3,1)] lg:hidden">
           <div className="flex flex-col gap-1 px-6 py-5">
             {NAV.map((item) => (
               <Link

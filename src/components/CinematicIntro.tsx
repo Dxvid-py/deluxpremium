@@ -15,6 +15,7 @@ export default function CinematicIntro() {
   const [mounted, setMounted] = useState(false);
   const [muted, setMuted] = useState(true);
   const [showUnlock, setShowUnlock] = useState(true);
+  const [audioAvailable, setAudioAvailable] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const enabled = settings?.["intro_audio_enabled"] !== "false";
@@ -26,7 +27,7 @@ export default function CinematicIntro() {
     try {
       skip = sessionStorage.getItem(SEEN_KEY) === "1";
     } catch {
-      /* storage not available */
+      skip = false;
     }
     if (skip || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
 
@@ -44,6 +45,7 @@ export default function CinematicIntro() {
         try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
       }, 6200),
     ];
+
     return () => {
       timers.forEach(window.clearTimeout);
       document.body.style.overflow = "";
@@ -52,46 +54,53 @@ export default function CinematicIntro() {
 
   useEffect(() => {
     if (!mounted || !enabled) return undefined;
-    const el = audioRef.current;
-    if (!el) return undefined;
-    el.muted = true;
-    el.volume = 0.6;
-    void el.play().catch(() => undefined);
-    setShowUnlock(true);
+    const audio = audioRef.current;
+    if (!audio) return undefined;
 
-    const unlockFromGesture = () => {
-      const audio = audioRef.current;
-      if (!audio) return;
+    audio.muted = true;
+    audio.volume = 0.65;
+    audio.preload = "auto";
+
+    const onReady = () => setAudioAvailable(true);
+    const onError = () => setAudioAvailable(false);
+    audio.addEventListener("canplay", onReady);
+    audio.addEventListener("error", onError);
+    void audio.play().catch(() => undefined);
+
+    const activateFromGesture = () => {
+      if (!audioAvailable) return;
       audio.muted = false;
-      audio.volume = 0.6;
+      audio.volume = 0.65;
       void audio.play().then(() => {
         setMuted(false);
         setShowUnlock(false);
       }).catch(() => undefined);
     };
 
-    window.addEventListener("pointerdown", unlockFromGesture, { once: true, capture: true });
-    window.addEventListener("keydown", unlockFromGesture, { once: true, capture: true });
+    window.addEventListener("pointerdown", activateFromGesture, { once: true, capture: true });
+    window.addEventListener("keydown", activateFromGesture, { once: true, capture: true });
+
     return () => {
-      window.removeEventListener("pointerdown", unlockFromGesture, true);
-      window.removeEventListener("keydown", unlockFromGesture, true);
-      el.pause();
+      audio.pause();
+      audio.removeEventListener("canplay", onReady);
+      audio.removeEventListener("error", onError);
+      window.removeEventListener("pointerdown", activateFromGesture, true);
+      window.removeEventListener("keydown", activateFromGesture, true);
     };
-  }, [mounted, enabled, audioSrc]);
+  }, [mounted, enabled, audioSrc, audioAvailable]);
 
   const activateAudio = async () => {
     const audio = audioRef.current;
-    if (!audio || !enabled) return;
+    if (!audio || !enabled || !audioAvailable) return;
     try {
       audio.currentTime = 0;
       audio.muted = false;
-      audio.volume = 0.6;
+      audio.volume = 0.65;
       await audio.play();
       setMuted(false);
       setShowUnlock(false);
     } catch {
-      // Si el archivo no está publicado o el navegador no concede permiso,
-      // el intro sigue funcionando en silencio sin romper la experiencia.
+      setMuted(true);
     }
   };
 
@@ -118,7 +127,6 @@ export default function CinematicIntro() {
           <span className={`pointer-events-none absolute -inset-20 rounded-full bg-[radial-gradient(circle,var(--rose-glow),transparent_65%)] ${stage >= 2 ? "aura-ring" : "opacity-0"}`} />
           <img src="/logo.png" alt="Floristería Deluxury" className="relative h-28 w-auto sm:h-40 md:h-52" />
         </div>
-
         <p className={`eyebrow mt-8 transition-all duration-1000 sm:mt-10 ${stage >= 3 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>{t("intro.location")}</p>
         <h1 className={`mt-4 font-display text-4xl leading-[1.02] transition-all duration-[1200ms] sm:text-6xl md:text-7xl ${stage >= 3 ? "translate-y-0 opacity-100 blur-0" : "translate-y-6 opacity-0 blur-md"}`}>
           <span className="text-lux-gradient block">Floristería</span>
@@ -128,19 +136,37 @@ export default function CinematicIntro() {
         <p className={`mt-5 max-w-md text-sm font-light leading-relaxed text-muted-foreground transition-all duration-1000 ${stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>{t("intro.tagline")}</p>
       </div>
 
-      {enabled && <audio ref={audioRef} src={audioSrc} preload="auto" playsInline loop />}
+      {enabled && <audio ref={audioRef} src={audioSrc} preload="auto" loop />}
 
-      {enabled && showUnlock && (
-        <button type="button" onClick={() => void activateAudio()} className="press absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2.5 text-[10px] tracking-[0.24em] text-foreground uppercase shadow-sm backdrop-blur-md sm:bottom-6 sm:left-6">
-          <Volume2 className="h-4 w-4" /> Activar sonido
+      {enabled && audioAvailable && showUnlock && (
+        <button
+          type="button"
+          onClick={() => void activateAudio()}
+          className="press absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2.5 text-[10px] tracking-[0.24em] text-foreground uppercase shadow-sm backdrop-blur-md sm:bottom-6 sm:left-6"
+        >
+          <Volume2 className="h-4 w-4" /> Entrar con sonido
         </button>
       )}
-      {enabled && !showUnlock && (
-        <button type="button" onClick={() => { const audio = audioRef.current; if (!audio) return; audio.muted = !audio.muted; setMuted(audio.muted); }} aria-label={t("cta.sound")} className="press absolute bottom-5 left-5 text-[10px] tracking-[0.24em] text-muted-foreground uppercase hover:text-primary sm:bottom-6 sm:left-6">
+
+      {enabled && audioAvailable && !showUnlock && (
+        <button
+          type="button"
+          onClick={() => {
+            const audio = audioRef.current;
+            if (!audio) return;
+            audio.muted = !audio.muted;
+            setMuted(audio.muted);
+          }}
+          aria-label={t("cta.sound")}
+          className="press absolute bottom-5 left-5 text-[10px] tracking-[0.24em] text-muted-foreground uppercase hover:text-primary sm:bottom-6 sm:left-6"
+        >
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
       )}
-      <button type="button" onClick={close} className="press absolute right-5 bottom-5 text-[10px] tracking-[0.24em] text-muted-foreground uppercase hover:text-primary sm:right-6 sm:bottom-6">{t("cta.skipIntro")}</button>
+
+      <button type="button" onClick={close} className="press absolute right-5 bottom-5 text-[10px] tracking-[0.24em] text-muted-foreground uppercase hover:text-primary sm:right-6 sm:bottom-6">
+        {t("cta.skipIntro")}
+      </button>
     </div>
   );
 }

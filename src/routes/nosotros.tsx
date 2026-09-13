@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import PetalCanvas from "@/components/PetalCanvas";
 import { useReveal } from "@/hooks/use-reveal";
 
@@ -49,14 +50,7 @@ function About() {
       </section>
 
       <section className="mx-auto mt-20 grid max-w-7xl gap-10 px-5 md:grid-cols-2 md:px-8">
-        <img
-          src="/img/prod-06.jpg"
-          alt="Ramo insignia del atelier"
-          loading="lazy"
-          width={900}
-          height={900}
-          data-parallax="0.06" data-anim="clip" className="aspect-square w-full rounded-sm object-cover"
-        />
+        <AboutImage />
         <div className="self-center">
           <h2 data-anim="clip" className="font-display text-3xl md:text-4xl">Cómo trabajamos</h2>
           <div className="mt-8 space-y-7" data-stagger="120">
@@ -78,6 +72,25 @@ function About() {
           </Link>
         </div>
       </section>
+    </div>
+  );
+}
+
+function AboutImage() {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className="relative overflow-hidden rounded-sm">
+      {!loaded && <div className="atelier-media-loader" aria-label="Cargando imagen del atelier" />}
+      <img
+        src="/img/prod-06.jpg"
+        alt="Ramo insignia del atelier"
+        loading="lazy"
+        width={900}
+        height={900}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        className={`aspect-square w-full rounded-sm object-cover transition-[opacity,filter] duration-700 ${loaded ? "opacity-100 blur-0" : "opacity-0 blur-sm"}`}
+      />
     </div>
   );
 }

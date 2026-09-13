@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { ArrowUpRight, Clock, Flower2, Gem, Truck } from "lucide-react";
 import HeroVideo from "@/components/HeroVideo";
 import ProductCard from "@/components/ProductCard";
@@ -112,16 +113,7 @@ function Home() {
       {/* Editorial */}
       <section className="relative overflow-hidden border-t border-border">
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-24 md:grid-cols-2 md:px-8 md:py-32">
-          <div className="aura-glow rounded-sm" data-anim="clip" data-parallax="0.08">
-            <img
-              src={settings?.["home_editorial_image_url"] ?? "/img/hero-02.jpg"}
-              alt="Composición floral blanca del atelier"
-              loading="lazy"
-              width={1600}
-              height={1100}
-              className="aspect-4/5 w-full rounded-sm object-cover"
-            />
-          </div>
+          <FloristeriaHomeImage src={settings?.["home_editorial_image_url"] ?? "/img/hero-02.jpg"} />
           <div>
             <p className="eyebrow" data-anim="fade-up">
               {t("home.editorial.eyebrow")}
@@ -163,4 +155,24 @@ function Home() {
       <InstagramSection />
     </>
   );
+}
+
+function FloristeriaHomeImage({ src }: { src: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className="aura-glow relative overflow-hidden rounded-sm">
+      {!loaded && <div className="atelier-media-loader" aria-label="Cargando imagen de La floristería" />}
+      <img
+        src={src}
+        alt="Composición floral blanca del atelier"
+        loading="lazy"
+        width={1600}
+        height={1100}
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+        className={`aspect-4/5 w-full rounded-sm object-cover transition-[opacity,filter] duration-700 ${loaded ? "opacity-100 blur-0" : "opacity-0 blur-sm"}`}
+      />
+    </div>
+  );
+
 }

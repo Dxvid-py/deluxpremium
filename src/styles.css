@@ -860,3 +860,400 @@ button, input, textarea, select {
   line-height: 1.08;
   text-shadow: 0 2px 18px oklch(0 0 0 / 0.55);
 }
+
+/* =========================================================
+   Deluxury · mobile stability + Florencio AI visual system
+   ========================================================= */
+
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+main,
+main > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+img,
+video,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+@keyframes atelier-loader-shimmer {
+  0% { transform: translateX(-120%); opacity: 0; }
+  25% { opacity: .7; }
+  65% { opacity: .35; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes atelier-loader-pulse {
+  0%, 100% { transform: scale(.92); opacity: .42; }
+  50% { transform: scale(1); opacity: .9; }
+}
+
+.atelier-media-loader {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 35%, oklch(.98 .01 84 / .75), transparent 45%),
+    linear-gradient(135deg, oklch(.95 .015 70), oklch(.90 .02 20));
+}
+
+.atelier-media-loader::before {
+  content: "";
+  width: 42px;
+  height: 42px;
+  border: 1px solid oklch(.63 .105 76 / .28);
+  border-top-color: var(--gold);
+  border-radius: 999px;
+  animation: atelier-loader-pulse 1.2s ease-in-out infinite;
+}
+
+.atelier-media-loader::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(100deg, transparent, oklch(1 0 0 / .35), transparent);
+  transform: translateX(-120%) skewX(-12deg);
+  animation: atelier-loader-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes florencio-core-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes florencio-core-spin-reverse {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes florencio-ai-pulse {
+  0%, 100% { transform: scale(.9); opacity: .25; }
+  50% { transform: scale(1.12); opacity: .7; }
+}
+
+@keyframes florencio-bars {
+  0%, 100% { transform: scaleY(.35); opacity: .35; }
+  50% { transform: scaleY(1); opacity: .95; }
+}
+
+@keyframes florencio-signal {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(.74 .09 82 / .22); opacity: .55; }
+  50% { box-shadow: 0 0 0 8px oklch(.74 .09 82 / 0); opacity: 1; }
+}
+
+.florencio-ai-grid {
+  background-image:
+    linear-gradient(oklch(1 0 0 / .045) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / .045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(circle at center, black 0%, black 45%, transparent 88%);
+  animation: florencio-grid-drift 14s linear infinite;
+}
+
+@keyframes florencio-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 44px 44px, 44px 44px; }
+}
+
+.florencio-ai-vignette {
+  background:
+    radial-gradient(circle at 50% 42%, transparent 0%, transparent 35%, oklch(.08 .01 330 / .42) 88%),
+    linear-gradient(180deg, oklch(.08 .01 330 / .16), oklch(.08 .01 330 / .76));
+}
+
+.florencio-ai-orbit {
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  border: 1px solid oklch(.74 .09 82 / .16);
+  box-shadow: 0 0 40px oklch(.74 .09 82 / .08);
+}
+
+.florencio-ai-orbit::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  box-shadow: 0 0 18px oklch(.74 .09 82 / .7);
+  animation: florencio-core-spin 8s linear infinite;
+  transform-origin: 0 78px;
+}
+
+.florencio-ai-orbit-a { animation: florencio-core-spin 22s linear infinite; }
+.florencio-ai-orbit-b { animation: florencio-core-spin-reverse 28s linear infinite; }
+
+.florencio-ai-core { animation: florencio-core-spin 18s linear infinite; }
+.florencio-ai-core-2 { animation: florencio-core-spin-reverse 26s linear infinite; }
+.florencio-ai-pulse { animation: florencio-ai-pulse 3.8s ease-in-out infinite; }
+
+.florencio-ai-bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+
+.florencio-ai-bars span {
+  display: block;
+  width: 3px;
+  height: 100%;
+  transform-origin: center bottom;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  animation: florencio-bars 1.2s ease-in-out infinite;
+}
+
+.florencio-ai-bars span:nth-child(2) { animation-delay: .12s; }
+.florencio-ai-bars span:nth-child(3) { animation-delay: .24s; }
+.florencio-ai-bars span:nth-child(4) { animation-delay: .36s; }
+.florencio-ai-bars span:nth-child(5) { animation-delay: .48s; }
+
+.florencio-signal-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  animation: florencio-signal 2s ease-in-out infinite;
+}
+
+.florencio-avatar {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid oklch(.63 .105 76 / .28);
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 25%, oklch(.99 .008 84), oklch(.82 .04 55));
+  box-shadow: 0 8px 24px -14px oklch(0 0 0 / .35);
+}
+
+.florencio-avatar img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: translateY(7%);
+}
+
+.florencio-avatar-sm {
+  width: 30px;
+  height: 30px;
+}
+
+.florencio-thinking {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px 999px 999px 7px;
+  background: var(--secondary);
+}
+
+.florencio-thinking span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gold);
+  animation: florencio-bars 1.15s ease-in-out infinite;
+}
+
+.florencio-thinking span:nth-child(2) { animation-delay: .12s; }
+.florencio-thinking span:nth-child(3) { animation-delay: .24s; }
+.florencio-thinking i {
+  position: absolute;
+  right: -16px;
+  bottom: -1px;
+  width: 13px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+@media (max-width: 768px) {
+  html { overscroll-behavior-x: none; }
+  body { overscroll-behavior-x: none; }
+
+  .florencio-ai-orbit { width: 120px; height: 120px; }
+  .florencio-ai-orbit::after { transform-origin: 0 52px; }
+  .florencio-terminal { border-radius: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .florencio-ai-grid,
+  .florencio-ai-orbit,
+  .florencio-ai-core,
+  .florencio-ai-core-2,
+  .florencio-ai-pulse,
+  .florencio-ai-bars span,
+  .florencio-signal-dot,
+  .florencio-thinking span,
+  .atelier-media-loader::before,
+  .atelier-media-loader::after {
+    animation: none !important;
+  }
+}
+
+/* =========================================================
+   Deluxury · mobile polish + Florencio AI atmosphere
+   ========================================================= */
+
+/* Prevent a single overflowing child from widening the document on phones. */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+main,
+main > *,
+section,
+section > *,
+article {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  header {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .florencio-terminal {
+    max-width: calc(100vw - 28px);
+  }
+
+  .florencio-ai-hero {
+    min-height: auto;
+  }
+
+  .florencio-ai-grid {
+    background-size: 32px 32px;
+  }
+}
+
+/* Cleaner atelier/image loading: one quiet light pass, no layout movement. */
+.atelier-media-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, oklch(1 0 0 / .72), transparent 44%),
+    linear-gradient(135deg, var(--secondary), var(--background));
+}
+
+.atelier-media-loader::before {
+  content: "";
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--gold) 35%, transparent);
+  border-top-color: var(--gold);
+  animation: atelier-loader-spin 1.2s linear infinite;
+}
+
+.atelier-media-loader::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / .42), transparent);
+  transform: translateX(-140%);
+  animation: atelier-loader-sweep 1.7s ease-in-out infinite;
+}
+
+@keyframes atelier-loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes atelier-loader-sweep {
+  0% { transform: translateX(-140%); opacity: 0; }
+  22% { opacity: .7; }
+  70% { opacity: .25; }
+  100% { transform: translateX(420%); opacity: 0; }
+}
+
+/* Florencio AI background: restrained, brand-coloured motion for the dedicated page only. */
+.florencio-ai-sweep {
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--gold-soft) 10%, transparent), transparent);
+  filter: blur(20px);
+  opacity: .2;
+  transform: skewX(-12deg);
+  animation: florencio-ai-sweep 13s ease-in-out infinite;
+}
+
+.florencio-ai-sweep.is-pulsing {
+  opacity: .35;
+}
+
+@keyframes florencio-ai-sweep {
+  0%, 100% { transform: translateX(-12vw) skewX(-12deg); }
+  50% { transform: translateX(72vw) skewX(-12deg); }
+}
+
+.florencio-thinking-dot {
+  width: 4px;
+  height: 4px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  animation: florencio-thinking-dot 1.2s ease-in-out infinite;
+}
+
+.florencio-thinking-dot:nth-child(2) { animation-delay: .15s; }
+.florencio-thinking-dot:nth-child(3) { animation-delay: .3s; }
+
+@keyframes florencio-thinking-dot {
+  0%, 100% { transform: translateY(0); opacity: .35; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+
+.florencio-ai-signal-line {
+  transform-origin: left center;
+  animation: florencio-signal-line 2.2s ease-in-out infinite;
+}
+
+@keyframes florencio-signal-line {
+  0%, 100% { transform: scaleX(.55); opacity: .38; }
+  50% { transform: scaleX(1); opacity: .92; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atelier-media-loader::before,
+  .atelier-media-loader::after,
+  .florencio-ai-sweep,
+  .florencio-thinking-dot,
+  .florencio-ai-signal-line {
+    animation: none !important;
+  }
+}
