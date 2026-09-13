@@ -27,17 +27,45 @@ export default function CinematicIntro() {
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  // La intro empieza inmediatamente e intentamos reproducir el audio con sonido.
-  // Si el navegador bloquea autoplay con sonido, no mostramos ningún botón: la
-  // intro continúa normalmente. El bloqueo lo decide el navegador, no la web.
+  // Intentamos reproducir inmediatamente. Si el navegador bloquea el audio,
+  // la primera interacción del usuario con CUALQUIER parte de la página lo
+  // desbloquea y hace que la pista continúe desde el principio.
   useEffect(() => {
     if (!mounted || !enabled || !audioRef.current) return;
     const audio = audioRef.current;
+    let unlocked = false;
+
     audio.currentTime = 0;
     audio.volume = 0.6;
     audio.muted = false;
+
+    const startAudio = () => {
+      if (unlocked) return;
+      unlocked = true;
+      audio.currentTime = 0;
+      audio.muted = false;
+      void audio.play().catch(() => {});
+      window.removeEventListener("pointerdown", startAudio, true);
+      window.removeEventListener("keydown", startAudio, true);
+      window.removeEventListener("touchstart", startAudio, true);
+    };
+
+    // Primer intento: sin interacción. Puede funcionar en navegadores que
+    // ya permiten audio en este dominio.
     void audio.play().catch(() => {});
-    return () => audio.pause();
+
+    // Si fue bloqueado, cualquier click/tap/tecla de la página sirve como
+    // gesto válido del usuario. No mostramos botones ni overlays.
+    window.addEventListener("pointerdown", startAudio, true);
+    window.addEventListener("keydown", startAudio, true);
+    window.addEventListener("touchstart", startAudio, true);
+
+    return () => {
+      window.removeEventListener("pointerdown", startAudio, true);
+      window.removeEventListener("keydown", startAudio, true);
+      window.removeEventListener("touchstart", startAudio, true);
+      audio.pause();
+    };
   }, [mounted, enabled]);
 
   // Pre-carga la imagen editable de fondo para que empiece a descargarse
