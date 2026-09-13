@@ -98,9 +98,10 @@ function FlorencioPage() {
 
   return (
     <div className="overflow-x-clip pt-24 md:pt-28">
-      <section className="relative isolate overflow-visible text-white">
-        <video
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_38%] opacity-75 sm:object-center sm:opacity-70"
+      <section className="relative isolate overflow-visible touch-pan-y text-white">
+        <div className="pointer-events-none absolute inset-0 select-none overflow-hidden">
+          <video
+          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover object-[50%_38%] opacity-75 sm:object-center sm:opacity-70"
           autoPlay
           muted
           loop
@@ -109,7 +110,9 @@ function FlorencioPage() {
           poster="/video/florencio-section/florencio-ai-poster.jpg"
           src="/video/florencio-section/florencio-ia.mp4"
           aria-hidden="true"
-        />
+          style={{ pointerEvents: "none", touchAction: "none" }}
+          />
+        </div>
 
         <div className="pointer-events-none absolute inset-0 bg-[#100b0d]/38" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(240,190,135,.2),transparent_35%),linear-gradient(180deg,rgba(10,7,8,.18),rgba(10,7,8,.72)_88%,rgba(10,7,8,1))]" />
