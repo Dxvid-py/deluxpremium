@@ -440,8 +440,8 @@ function ChatCore({ embedded = false }: { embedded?: boolean }) {
       </div>
 
       {embedded && (
-        <div className="pointer-events-none absolute bottom-[-18px] right-2 z-20 w-[92px] sm:bottom-[-24px] sm:right-6 sm:w-[118px] lg:right-10 lg:w-[140px]">
-          <div className="absolute -inset-5 rounded-full bg-[radial-gradient(circle,var(--rose-glow),transparent_68%)] opacity-50 blur-xl" />
+        <div className="pointer-events-none absolute bottom-4 right-3 z-20 hidden w-[82px] sm:block sm:bottom-5 sm:right-5 sm:w-[96px] lg:right-[-104px] lg:bottom-8 lg:w-[112px]">
+          <div className="absolute -inset-5 rounded-full bg-[radial-gradient(circle,var(--rose-glow),transparent_68%)] opacity-45 blur-xl" />
           <img
             src={FLORENCIO_IMAGE}
             alt="Florencio, asistente de Deluxury"
