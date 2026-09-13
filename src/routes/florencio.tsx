@@ -1,27 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  Bot,
   Check,
-  Heart,
-  Instagram,
   MessageCircle,
   Sparkles,
   Truck,
 } from "lucide-react";
-import { categoriesQuery, productsQuery, settingsQuery } from "@/lib/queries";
-import { useI18n } from "@/lib/i18n";
+import { productsQuery, settingsQuery } from "@/lib/queries";
+import { formatMoney } from "@/lib/format";
+import { useStore } from "@/lib/store";
 import ProductCard from "@/components/ProductCard";
 import FlorencioChat from "@/components/FlorencioChat";
 
 export const Route = createFileRoute("/florencio")({
   head: () => ({
     meta: [
-      { title: "Florencio IA · Asistente de Deluxury" },
+      { title: "Florencio · Asistente de Deluxury" },
       {
         name: "description",
         content:
-          "Habla con Florencio, la IA floral de Deluxury, y descubre productos reales del catálogo según tu ocasión, estilo y presupuesto.",
+          "Florencio recomienda productos reales de Deluxury y acompaña el domicilio especial.",
       },
     ],
   }),
@@ -37,278 +38,307 @@ type FlorencioMedia = {
 
 function parseMedia(raw?: string): FlorencioMedia[] {
   if (!raw) return [];
+
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is FlorencioMedia => {
-      if (!item || typeof item !== "object") return false;
-      const x = item as Record<string, unknown>;
-      return (
-        (x.type === "image" || x.type === "reel") &&
-        typeof x.url === "string"
-      );
-    });
+
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item): item is FlorencioMedia =>
+            !!item &&
+            typeof item === "object" &&
+            ((item as FlorencioMedia).type === "image" ||
+              (item as FlorencioMedia).type === "reel") &&
+            typeof (item as FlorencioMedia).url === "string",
+        )
+      : [];
   } catch {
     return [];
   }
 }
 
 function FlorencioPage() {
-  useI18n();
-
   const { data: settings } = useQuery(settingsQuery);
   const { data: products = [] } = useQuery(productsQuery);
-  useQuery(categoriesQuery);
+  const { currency } = useStore();
 
-  const media = parseMedia(settings?.["florencio_media_json"]);
   const enabled = settings?.["florencio_delivery_enabled"] !== "false";
   const price = Number(settings?.["florencio_delivery_price_cop"] ?? 0);
+  const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
   const whatsapp = settings?.["whatsapp_number"] ?? "573006301123";
   const serviceCopy =
     settings?.["florencio_delivery_description"] ||
-    "Un detalle especial para quienes quieren que Florencio sea parte de la sorpresa y acompañe personalmente la entrega.";
+    "Haz que la entrega sea parte de la sorpresa y solicita el domicilio especial con Florencio.";
+  const media = parseMedia(settings?.["florencio_media_json"]);
 
-  const suggested = products
-    .filter((p) => p.is_active)
-    .filter((p) => p.is_featured)
-    .slice(0, 3);
+  const suggested = useMemo(
+    () =>
+      products
+        .filter((product) => product.is_active && Number(product.stock) !== 0)
+        .slice(0, 4),
+    [products],
+  );
+
+  // Esta página nunca debe bloquear el scroll del documento.
+  useEffect(() => {
+    document.body.classList.add("florencio-page");
+
+    const htmlOverflowY = document.documentElement.style.overflowY;
+    const bodyOverflowY = document.body.style.overflowY;
+
+    document.documentElement.style.overflowY = "auto";
+    document.body.style.overflowY = "auto";
+
+    return () => {
+      document.body.classList.remove("florencio-page");
+      document.documentElement.style.overflowY = htmlOverflowY;
+      document.body.style.overflowY = bodyOverflowY;
+    };
+  }, []);
 
   return (
-    <div className="overflow-hidden bg-[#0b0808] pt-20 text-white md:pt-24">
-      {/* IA principal: el video es el ambiente del chat, no una tarjeta
-          separada. En móvil el encuadre queda centrado y menos recortado. */}
-      <section className="relative isolate overflow-hidden border-b border-white/10">
+    <div className="overflow-x-clip pt-24 md:pt-28">
+      <section className="relative isolate overflow-visible text-white">
         <video
-          className="absolute inset-0 h-full w-full object-cover object-[50%_42%] opacity-65 sm:object-center sm:opacity-70"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[50%_38%] opacity-75 sm:object-center sm:opacity-70"
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           poster="/video/florencio-section/florencio-ai-poster.jpg"
+          src="/video/florencio-section/florencio-ia.mp4"
           aria-hidden="true"
-        >
-          <source
-            src="/video/florencio-section/florencio-ia.mp4"
-            type="video/mp4"
-          />
-        </video>
+        />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(255,220,184,0.2),transparent_34%),linear-gradient(180deg,rgba(7,5,5,0.12),rgba(7,5,5,0.72)_68%,#0b0808)]" />
-        <div className="absolute inset-0 bg-black/15" />
+        <div className="pointer-events-none absolute inset-0 bg-[#100b0d]/38" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(240,190,135,.2),transparent_35%),linear-gradient(180deg,rgba(10,7,8,.18),rgba(10,7,8,.72)_88%,rgba(10,7,8,1))]" />
 
-        <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-14 sm:px-6 sm:py-20 md:px-8 md:py-24">
-          <div className="max-w-3xl text-center">
-            <p className="text-[9px] tracking-[0.3em] text-primary uppercase">
-              Florencio IA
-            </p>
+        <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20">
+          <div className="mx-auto max-w-4xl text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/20 px-4 py-2 text-[9px] tracking-[0.22em] text-white/70 uppercase backdrop-blur-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              Florencio IA · Deluxury
+            </div>
 
-            <h1 className="mt-4 font-display text-4xl leading-[0.95] sm:text-6xl md:text-7xl">
-              Tu asistente floral de{" "}
-              <span className="text-lux-gradient italic">Deluxury.</span>
+            <h1 className="mt-6 font-display text-5xl leading-[0.92] sm:text-6xl md:text-7xl">
+              Habla con{" "}
+              <span className="italic text-primary">Florencio.</span>
             </h1>
 
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base">
-              Dile qué necesitas y Florencio buscará coincidencias en el
-              catálogo real, te explicará por qué las recomienda y te permitirá
-              añadirlas al carrito.
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
+              Cuéntale qué estás buscando. Te recomienda flores del catálogo
+              real, te explica brevemente por qué encajan y puedes agregarlas
+              al carrito sin salir del chat.
             </p>
           </div>
 
-          <div className="mt-10 flex w-full justify-center sm:mt-12">
+          <div
+            className="relative z-10 mx-auto mt-9 w-full max-w-4xl sm:mt-12"
+            style={{ touchAction: "pan-y" }}
+          >
             <FlorencioChat embedded />
           </div>
         </div>
       </section>
 
-      <section className="border-b border-white/10 bg-[#0b0808] py-16 md:py-24">
+      <section className="border-b border-border bg-background py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
-          <div className="max-w-2xl">
-            <p className="text-[9px] tracking-[0.3em] text-primary uppercase">
-              Cómo funciona
-            </p>
+          <div className="max-w-3xl">
+            <p className="eyebrow">La experiencia</p>
+
             <h2 className="mt-4 font-display text-4xl md:text-5xl">
-              Una IA que{" "}
+              Florencio no solo conversa.{" "}
               <span className="text-lux-gradient italic">
-                sí conoce Deluxury.
+                te ayuda a decidir.
               </span>
             </h2>
+
+            <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+              Puedes escribir con tus propias palabras o usar el catálogo
+              cuando prefieras. La recomendación siempre termina en productos
+              reales de Deluxury.
+            </p>
           </div>
 
-          <div className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:grid-cols-3">
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
             {[
+              ["01", "Describe", "“Quiero algo romántico, rojo y elegante.”"],
               [
-                Sparkles,
-                "Entiende tu idea",
-                "Puedes escribir de forma natural: ocasión, persona, estilo, color o presupuesto.",
+                "02",
+                "Recomienda",
+                "Florencio cruza tus pistas con el catálogo real.",
               ],
               [
-                Heart,
-                "Cruza el catálogo",
-                "Las recomendaciones salen de los productos reales disponibles en Deluxury.",
+                "03",
+                "Compra",
+                "Agrega el arreglo al carrito o entra a comprarlo.",
               ],
-              [
-                Check,
-                "Te ayuda a comprar",
-                "Puedes revisar el producto o añadirlo directamente al mismo carrito de la tienda.",
-              ],
-            ].map(([Icon, title, copy]) => {
-              const I = Icon as typeof Sparkles;
-              return (
-                <article
-                  key={String(title)}
-                  className="bg-white/[0.025] p-7 backdrop-blur-sm md:p-8"
-                >
-                  <I className="h-5 w-5 text-primary" />
-                  <h3 className="mt-5 font-display text-2xl">
-                    {String(title)}
-                  </h3>
-                  <p className="mt-3 text-sm leading-relaxed text-white/55">
-                    {String(copy)}
-                  </p>
-                </article>
-              );
-            })}
+            ].map(([number, title, copy]) => (
+              <div
+                key={number}
+                className="rounded-3xl border border-border bg-card p-6"
+              >
+                <p className="text-[10px] tracking-[0.22em] text-primary">
+                  {number}
+                </p>
+                <h3 className="mt-5 font-display text-2xl">{title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  {copy}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-4 rounded-3xl border border-primary/15 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Bot className="mt-0.5 h-5 w-5 text-primary" />
+
+              <div>
+                <p className="font-display text-xl">¿No hay IA disponible?</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Florencio cambia automáticamente a modo catálogo: ocasión,
+                  destinatario, estilo, color y presupuesto.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to="/catalogo"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-border px-5 py-3 text-[10px] tracking-[0.18em] uppercase"
+            >
+              Modo IA en catálogo
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
       </section>
 
       {enabled && (
-        <section className="border-b border-white/10 bg-[#0b0808] py-16 md:py-24">
-          <div className="mx-auto max-w-7xl px-5 md:px-8">
-            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-              <div>
-                <p className="text-[9px] tracking-[0.3em] text-primary uppercase">
-                  Servicio extra
-                </p>
-                <h2 className="mt-4 font-display text-4xl md:text-5xl">
-                  Entrega especial con{" "}
-                  <span className="text-lux-gradient italic">
-                    Florencio.
-                  </span>
-                </h2>
-                <p className="mt-5 text-base leading-relaxed text-white/55">
-                  {serviceCopy}
-                </p>
+        <section className="border-b border-border bg-secondary/35 py-16 md:py-24">
+          <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[1fr_.75fr] md:items-center md:px-8">
+            <div>
+              <p className="eyebrow">Servicio especial</p>
 
-                <div className="mt-7 flex items-center gap-3 text-sm text-white/70">
-                  <Truck className="h-5 w-5 text-primary" />
-                  <span>
-                    Tarifa{" "}
-                    {price > 0 ? (
-                      <strong>
-                        {new Intl.NumberFormat("es-CO", {
-                          style: "currency",
-                          currency: "COP",
-                          maximumFractionDigits: 0,
-                        }).format(price)}
-                      </strong>
-                    ) : (
-                      <strong>configurable desde el panel</strong>
-                    )}
-                  </span>
-                </div>
+              <h2 className="mt-4 font-display text-4xl md:text-5xl">
+                Domicilio{" "}
+                <span className="italic text-lux-gradient">
+                  con Florencio.
+                </span>
+              </h2>
 
-                <a
-                  href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(
-                    "Hola, quisiera agregar la entrega especial con Florencio a mi pedido.",
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-7 inline-flex items-center gap-2 bg-white px-7 py-3.5 text-[11px] tracking-[0.24em] text-black uppercase hover:bg-primary"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Preguntar por disponibilidad
-                </a>
-              </div>
+              <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                {serviceCopy}
+              </p>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  "Acompañamiento de la sorpresa",
-                  "Coordinación por WhatsApp",
-                  "Servicio opcional de Deluxury",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-2xl border border-white/10 bg-white/[0.03] p-6"
-                  >
-                    <Check className="h-4 w-4 text-primary" />
-                    <p className="mt-5 font-display text-xl">{item}</p>
-                  </div>
-                ))}
+              <div className="mt-7 flex flex-wrap gap-5 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-primary" />
+                  Entrega especial
+                </span>
+
+                <span className="inline-flex items-center gap-2">
+                  <Check className="h-4 w-4 text-primary" />
+                  Opción en el producto
+                </span>
+
+                <span className="inline-flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Parte de la sorpresa
+                </span>
               </div>
             </div>
-          </div>
-        </section>
-      )}
 
-      {media.length > 0 && (
-        <section className="border-b border-white/10 bg-[#0b0808] py-16 md:py-24">
-          <div className="mx-auto max-w-7xl px-5 md:px-8">
-            <div className="flex flex-wrap items-end justify-between gap-6">
-              <div>
-                <p className="text-[9px] tracking-[0.3em] text-primary uppercase">
-                  Florencio detrás de escena
-                </p>
-                <h2 className="mt-4 font-display text-4xl md:text-5xl">
-                  Momentos de{" "}
-                  <span className="text-lux-gradient italic">Florencio</span>
-                </h2>
-              </div>
-              <Instagram className="h-5 w-5 text-primary" />
-            </div>
+            <div className="surface-glass rounded-3xl p-7">
+              <p className="eyebrow">Tarifa</p>
 
-            <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {media.map((item, index) => (
-                <a
-                  key={`${item.url}-${index}`}
-                  href={item.link || item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group relative aspect-square overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
-                >
-                  {item.type === "image" ? (
-                    <img
-                      src={item.url}
-                      alt={item.caption || "Florencio"}
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-[radial-gradient(circle_at_50%_30%,var(--rose-glow),transparent_65%)] p-5">
-                      <div className="flex h-full flex-col justify-end">
-                        <p className="text-[10px] tracking-[0.22em] text-primary uppercase">
-                          Reel de Instagram
-                        </p>
-                        <p className="mt-2 font-display text-2xl">
-                          {item.caption || "Ver momento de Florencio"}
-                        </p>
-                        <ArrowRight className="mt-5 h-4 w-4 text-primary" />
-                      </div>
-                    </div>
-                  )}
-                </a>
-              ))}
+              <p className="mt-3 font-display text-4xl text-primary">
+                {price > 0 ? formatMoney(price, currency, trm) : "Consultar"}
+              </p>
+
+              <p className="mt-3 text-sm text-muted-foreground">
+                También puedes coordinar el servicio por WhatsApp.
+              </p>
+
+              <a
+                href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(
+                  "Hola, quiero solicitar el domicilio especial con Florencio.",
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 text-[10px] tracking-[0.2em] text-primary-foreground uppercase"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Coordinar por WhatsApp
+              </a>
             </div>
           </div>
         </section>
       )}
 
       {suggested.length > 0 && (
-        <section className="bg-[#0b0808] py-16 md:py-24">
+        <section className="border-b border-border py-16 md:py-24">
           <div className="mx-auto max-w-7xl px-5 md:px-8">
-            <p className="text-[9px] tracking-[0.3em] text-primary uppercase">
-              Florencio recomienda
-            </p>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="eyebrow">Después de hablar con Florencio</p>
+
+                <h2 className="mt-4 font-display text-4xl md:text-5xl">
+                  Empieza por estas piezas.
+                </h2>
+              </div>
+
+              <Link
+                to="/catalogo"
+                className="inline-flex items-center gap-2 text-[10px] tracking-[0.18em] uppercase hover:text-primary"
+              >
+                Ver catálogo
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="mt-10 grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
+              {suggested.map((product, index) => (
+                <ProductCard key={product.id} product={product} index={index} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {media.length > 0 && (
+        <section className="border-b border-border py-16 md:py-24">
+          <div className="mx-auto max-w-7xl px-5 md:px-8">
+            <p className="eyebrow">Más de Florencio</p>
+
             <h2 className="mt-4 font-display text-4xl md:text-5xl">
-              Algunas piezas que{" "}
-              <span className="text-lux-gradient italic">
-                le encantan.
-              </span>
+              Su universo.
             </h2>
 
-            <div className="mt-10 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-7 lg:grid-cols-3">
-              {suggested.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} />
+            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {media.map((item, index) => (
+                <a
+                  key={`${item.url}-${index}`}
+                  href={item.link || item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group overflow-hidden rounded-3xl border border-border bg-secondary"
+                >
+                  <div className="aspect-[4/5] overflow-hidden">
+                    <img
+                      src={item.url}
+                      alt={item.caption || "Florencio de Deluxury"}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  {item.caption && (
+                    <p className="p-4 text-sm text-muted-foreground">
+                      {item.caption}
+                    </p>
+                  )}
+                </a>
               ))}
             </div>
           </div>
