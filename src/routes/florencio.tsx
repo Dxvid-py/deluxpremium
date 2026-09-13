@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   Check,
   Heart,
+  Instagram,
   MessageCircle,
+  Play,
   ShoppingBag,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
 import FlorencioCatalogAssistant from "@/components/FlorencioCatalogAssistant";
+import { settingsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/florencio")({
   head: () => ({
@@ -25,6 +29,9 @@ export const Route = createFileRoute("/florencio")({
 });
 
 function FlorencioPage() {
+  const { data: settings } = useQuery(settingsQuery);
+  const media = parseFlorencioMedia(settings?.["florencio_media_json"]);
+
   return (
     <div className="overflow-hidden pt-24 md:pt-28">
       {/* HERO — intencionadamente sin queries ni lógica de Supabase para que
@@ -246,6 +253,96 @@ function FlorencioPage() {
           </div>
         </div>
       </section>
+      {media.length > 0 && (
+        <section className="border-b border-border bg-[#fbf7f0] py-16 md:py-20">
+          <div className="mx-auto max-w-7xl px-5 md:px-8">
+            <div className="max-w-3xl">
+              <p className="eyebrow">Contenido exclusivo</p>
+              <h2 className="mt-3 font-display text-4xl md:text-5xl">
+                Fotos y reels de{" "}
+                <span className="text-lux-gradient italic">Florencio.</span>
+              </h2>
+            </div>
+
+            <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {media.map((item, index) => {
+                const card = (
+                  <article className="group relative overflow-hidden rounded-2xl border border-border bg-white/60 shadow-[0_18px_48px_-35px_rgba(72,45,28,0.24)] transition hover:border-primary/40">
+                    <div className="relative aspect-[4/5] overflow-hidden bg-secondary/20">
+                      {item.type === "image" ? (
+                        <img
+                          src={item.url || "/img/florencio.png"}
+                          alt={item.caption || "Florencio"}
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#1b1310] text-cream-hi">
+                          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/90">
+                            <Play className="h-4 w-4 fill-current" />
+                          </span>
+                          <span className="text-[9px] tracking-[0.2em] uppercase text-cream-hi/70">
+                            Reel de Instagram
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {item.caption && (
+                      <p className="border-t border-border/70 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+                        {item.caption}
+                      </p>
+                    )}
+                  </article>
+                );
+
+                return item.link ? (
+                  <a
+                    key={`${index}-${item.url}`}
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="press block"
+                  >
+                    {card}
+                  </a>
+                ) : (
+                  <div key={`${index}-${item.url}`}>{card}</div>
+                );
+              })}
+            </div>
+
+            <a
+              href="https://instagram.com/deluxuryfloristeria"
+              target="_blank"
+              rel="noreferrer"
+              className="press mt-8 inline-flex items-center gap-2 text-[10px] tracking-[0.2em] text-primary uppercase"
+            >
+              <Instagram className="h-4 w-4" />
+              Ver más en Instagram
+            </a>
+          </div>
+        </section>
+      )}
     </div>
   );
+}
+
+type FlorencioMediaItem = { type: "image" | "reel"; url: string; caption: string; link: string };
+
+function parseFlorencioMedia(raw?: string): FlorencioMediaItem[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+      .map((item) => ({
+        type: item["type"] === "reel" ? "reel" : "image",
+        url: typeof item["url"] === "string" ? item["url"] : "",
+        caption: typeof item["caption"] === "string" ? item["caption"] : "",
+        link: typeof item["link"] === "string" ? item["link"] : "",
+      }))
+      .filter((item) => item.url || item.type === "reel");
+  } catch {
+    return [];
+  }
 }
