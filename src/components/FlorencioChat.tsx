@@ -1,24 +1,398 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Send, ShoppingBag, Sparkles, X } from "lucide-react";
+import { ArrowRight, Bot, Send, ShoppingBag, Sparkles, X } from "lucide-react";
 import { productsQuery, categoriesQuery, settingsQuery, type Product } from "@/lib/queries";
 import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
 import { useContentTranslator } from "@/lib/i18n";
-import { describeFlorencioFilters, parseFlorencioFilters, rankFlorencioProducts, type FlorencioFilters } from "@/lib/florencio-recommendations";
+import {
+  describeFlorencioFilters,
+  parseFlorencioFilters,
+  rankFlorencioProducts,
+  type FlorencioFilters,
+} from "@/lib/florencio-recommendations";
 import { askFlorencioAI } from "@/lib/florencio-ai";
 
-const FLORENCIO_IMAGE = "/img/florencio.png";
-const QUICK_PROMPTS = ["Regalo para mi pareja", "Algo para cumpleaños", "Quiero algo elegante", "Máximo $200.000"];
-type Message = { id:number; role:"florencio"|"user"; text:string };
-function Avatar({small=false}:{small?:boolean}){return <span className={`florencio-avatar ${small?"florencio-avatar-sm":""}`} aria-hidden="true"><img src={FLORENCIO_IMAGE} alt="" /></span>}
-function mergeFilters(current:FlorencioFilters, parsed:FlorencioFilters):FlorencioFilters{return {recipient:parsed.recipient??current.recipient,occasion:parsed.occasion??current.occasion,style:parsed.style??current.style,color:parsed.color??current.color,budgetMax:parsed.budgetMax??current.budgetMax,keywords:Array.from(new Set([...current.keywords,...parsed.keywords])).slice(0,16)}}
-function localReply(filters:FlorencioFilters){const parts=describeFlorencioFilters(filters);return parts.length?`Perfecto. ${parts.join(" · ")}. Voy a buscar las piezas que mejor encajan en el catálogo de Deluxury.`:"Cuéntame para quién es, la ocasión, el estilo que buscas o cuánto quieres invertir y te recomiendo las opciones que mejor encajen."}
-function RecommendationCard({product,onAdd}:{product:ReturnType<typeof rankFlorencioProducts>[number];onAdd:(product:Product)=>void}){const {currency}=useStore();const {data:settings}=useQuery(settingsQuery);const tc=useContentTranslator([product.name]);const trm=Number(settings?.["trm_cop_usd"]??3950);return <article className="overflow-hidden border border-white/10 bg-black/15"><div className="grid grid-cols-[76px_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[96px_1fr] sm:p-3.5"><img src={product.images?.[0]??"/img/prod-01.jpg"} alt={tc(product.name)} className="h-[92px] w-full object-cover sm:h-24"/><div className="min-w-0"><div className="flex items-start justify-between gap-3"><p className="min-w-0 font-display text-lg leading-tight text-white">{tc(product.name)}</p><span className="shrink-0 text-[11px] text-primary">{formatMoney(Number(product.price_cop),currency,trm)}</span></div><p className="mt-1.5 text-[11px] leading-relaxed text-white/60">{product.matchReasons?.[0]?`Lo recomiendo porque ${product.matchReasons[0]}.`:"Encaja especialmente bien con lo que estás buscando."}</p><div className="mt-2.5 flex flex-wrap gap-2"><Link to="/producto/$slug" params={{slug:product.slug}} className="inline-flex items-center gap-1 border border-white/15 px-3 py-1.5 text-[9px] tracking-[0.12em] text-white/75 uppercase">Ver producto <ArrowRight className="h-3 w-3"/></Link><button type="button" onClick={()=>onAdd(product)} className="inline-flex items-center gap-1 bg-primary px-3 py-1.5 text-[9px] tracking-[0.12em] text-primary-foreground uppercase"><ShoppingBag className="h-3 w-3"/>Agregar</button></div></div></div></article>}
-function ChatCore({embedded=false}:{embedded?:boolean}){const[input,setInput]=useState("");const[messages,setMessages]=useState<Message[]>([]);const[filters,setFilters]=useState<FlorencioFilters>({keywords:[]});const[thinking,setThinking]=useState(false);const nextId=useRef(1);const scrollRef=useRef<HTMLDivElement|null>(null);const{add}=useStore();const{data:products=[]}=useQuery(productsQuery);const{data:categories=[]}=useQuery(categoriesQuery);const recommendations=useMemo(()=>rankFlorencioProducts(products,categories,filters,3),[products,categories,filters]);useEffect(()=>{setMessages([{id:nextId.current++,role:"florencio",text:"Hola, soy Florencio. ¿Qué detalle estás buscando?"},{id:nextId.current++,role:"florencio",text:"Cuéntame para quién es, la ocasión, el estilo, el color o tu presupuesto."}])},[]);useEffect(()=>{const e=scrollRef.current;if(e)e.scrollTop=e.scrollHeight},[messages,thinking]);
-const send=async(raw:string)=>{const text=raw.trim();if(!text||thinking)return;const history=messages.slice(-8).map(m=>({role:m.role,text:m.text}));setMessages(p=>[...p,{id:nextId.current++,role:"user",text}]);setInput("");setThinking(true);try{const result=await askFlorencioAI({message:text,history,currentFilters:filters});const local=parseFlorencioFilters(text);const merged=mergeFilters(filters,{recipient:result.filters.recipient??local.recipient,occasion:result.filters.occasion??local.occasion,style:result.filters.style??local.style,color:result.filters.color??local.color,budgetMax:result.filters.budgetMax??local.budgetMax,keywords:Array.from(new Set([...(result.keywords??[]),...(result.filters.keywords??[])]))});setFilters(merged);setMessages(p=>[...p,{id:nextId.current++,role:"florencio",text:result.reply}])}catch(error){const merged=mergeFilters(filters,parseFlorencioFilters(text));setFilters(merged);setMessages(p=>[...p,{id:nextId.current++,role:"florencio",text:localReply(merged)}]);console.warn("Florencio AI no disponible; usando recomendación local.",error)}finally{setThinking(false)}};
-const addRecommended=(product:Product)=>{add(product);setMessages(p=>[...p,{id:nextId.current++,role:"florencio",text:`Listo. Añadí ${product.name} a tu carrito.`}]);window.dispatchEvent(new CustomEvent("florencio:product-selected",{detail:{name:product.name}}))};
-const shell=embedded?"relative flex min-h-[620px] w-full flex-col overflow-hidden text-white sm:min-h-[700px] lg:min-h-[760px]":"flex h-full min-h-0 flex-col overflow-hidden rounded-[26px] bg-[#120d12] text-white";
-return <div className={shell}><header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-4 sm:px-7 sm:py-5"><div className="flex items-center gap-3"><Avatar small/><div><p className="font-display text-xl text-white sm:text-2xl">Florencio</p><p className="text-[8px] tracking-[0.2em] text-white/45 uppercase">Asistente floral · Deluxury</p></div></div><span className="flex items-center gap-2 text-[8px] tracking-[0.16em] text-white/45 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-primary"/>disponible</span></header><div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-6 sm:px-8 sm:py-8" style={{WebkitOverflowScrolling:"touch",touchAction:"pan-y"}}><div className="mx-auto w-full max-w-3xl space-y-5">{messages.map(m=>m.role==="florencio"?<div key={m.id} className="flex max-w-[94%] items-start gap-2.5 sm:gap-3"><Avatar small/><div className="border border-white/10 bg-black/20 px-4 py-3 text-sm leading-relaxed text-white/90 sm:px-5 sm:py-3.5">{m.text}</div></div>:<div key={m.id} className="ml-auto max-w-[84%] bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground sm:px-5 sm:py-3.5">{m.text}</div>)}{thinking&&<div className="flex items-center gap-3"><Avatar small/><div className="flex items-center gap-1.5 border border-white/10 bg-black/20 px-3 py-2"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"/><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:150ms]"/><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary [animation-delay:300ms]"/></div><span className="text-xs text-white/45">Florencio está pensando…</span></div>}{recommendations.length>0&&messages.length>2&&<div className="space-y-3 pt-3"><div className="flex items-center gap-2 text-[9px] tracking-[0.18em] text-white/45 uppercase"><Sparkles className="h-3.5 w-3.5 text-primary"/>Recomendaciones para ti</div>{recommendations.map(p=><RecommendationCard key={p.id} product={p} onAdd={addRecommended}/>)}</div>}</div></div><div className="shrink-0 border-t border-white/10 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] sm:px-7 sm:py-4 sm:pb-4"><div className="mx-auto mb-3 flex max-w-3xl gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{QUICK_PROMPTS.map(p=><button key={p} type="button" onClick={()=>void send(p)} disabled={thinking} className="shrink-0 border border-white/10 bg-black/15 px-3 py-2 text-[9px] text-white/65 hover:border-primary/50 disabled:opacity-40">{p}</button>)}</div><form onSubmit={e=>{e.preventDefault();void send(input)}} className="mx-auto flex max-w-3xl items-center gap-2 border border-white/10 bg-black/20 p-1.5 focus-within:border-primary/60"><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Escribe lo que necesitas…" className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/35"/><button type="submit" disabled={!input.trim()||thinking} aria-label="Enviar" className="flex h-10 w-10 shrink-0 items-center justify-center bg-primary text-primary-foreground disabled:opacity-40"><Send className="h-4 w-4"/></button></form><p className="mx-auto mt-2 max-w-3xl text-[8px] tracking-[0.12em] text-white/30 uppercase">Productos y precios salen del catálogo real de Deluxury</p></div>{embedded&&<div className="pointer-events-none absolute bottom-2 right-1 z-20 w-[72px] sm:bottom-1 sm:right-3 sm:w-[92px] lg:right-6 lg:w-[108px]"><img src={FLORENCIO_IMAGE} alt="" className="h-auto w-full object-contain object-bottom drop-shadow-[0_18px_30px_rgba(0,0,0,.65)]"/></div>}</div>}
-export default function FlorencioChat(){const[open,setOpen]=useState(false);useEffect(()=>{const openChat=()=>setOpen(true);const onKeyDown=(e:KeyboardEvent)=>{if(e.key==="Escape")setOpen(false)};window.addEventListener("florencio:open-chat",openChat);window.addEventListener("keydown",onKeyDown);return()=>{window.removeEventListener("florencio:open-chat",openChat);window.removeEventListener("keydown",onKeyDown)}},[]);return <>{open&&<div className="fixed inset-0 z-[70] bg-black/45 backdrop-blur-[2px]" onClick={()=>setOpen(false)} aria-hidden="true"/>}<aside className={`fixed inset-x-2 bottom-2 z-[80] h-[calc(100dvh-20px)] max-h-[780px] overflow-hidden rounded-[26px] border border-white/15 bg-[#120d12] text-white shadow-[0_30px_100px_-35px_rgba(0,0,0,.8)] transition-all duration-300 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:h-[min(720px,calc(100vh-24px))] sm:w-[460px] ${open?"translate-y-0 opacity-100":"pointer-events-none translate-y-8 opacity-0"}`}><div className="h-full min-h-0"><div className="flex h-full min-h-0 flex-col"><header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3.5"><div className="flex items-center gap-3"><Avatar/><div><p className="font-display text-xl text-white">Florencio</p><p className="text-[9px] tracking-[0.16em] text-white/45 uppercase">Asistente floral · Deluxury</p></div></div><button type="button" onClick={()=>setOpen(false)} aria-label="Cerrar chat" className="rounded-full border border-white/10 p-2 text-white/60 hover:border-primary/50 hover:text-white"><X className="h-4 w-4"/></button></header><div className="min-h-0 flex-1"><ChatCore/></div></div></div></aside></>}
+const QUICK_PROMPTS = [
+  "Quiero un regalo para mi pareja",
+  "Algo para un cumpleaños",
+  "Quiero algo elegante",
+  "Tengo máximo $200.000",
+];
+
+type Message = {
+  id: number;
+  role: "florencio" | "user";
+  text: string;
+};
+
+function ProductMiniCard({
+  product,
+  onAdd,
+}: {
+  product: Product;
+  onAdd: (product: Product) => void;
+}) {
+  const { currency } = useStore();
+  const { data: settings } = useQuery(settingsQuery);
+  const tc = useContentTranslator([product.name]);
+  const trm = Number(
+    (settings as Record<string, string> | undefined)?.["trm_cop_usd"] ?? 3950,
+  );
+
+  return (
+    <div className="overflow-hidden border border-border bg-background">
+      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-4 p-3 sm:grid-cols-[105px_minmax(0,1fr)] sm:p-4">
+        <img
+          src={product.images?.[0] ?? "/img/prod-01.jpg"}
+          alt={tc(product.name)}
+          className="h-[88px] w-full object-cover sm:h-[108px]"
+        />
+        <div className="min-w-0">
+          <p className="font-display text-lg leading-tight">{tc(product.name)}</p>
+          <p className="mt-1 text-xs text-primary">
+            {formatMoney(Number(product.price_cop), currency, trm)}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              to="/producto/$slug"
+              params={{ slug: product.slug }}
+              className="inline-flex items-center gap-1 border border-border px-3 py-2 text-[9px] tracking-[0.14em] uppercase transition hover:border-primary"
+            >
+              Ver producto <ArrowRight className="h-3 w-3" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => onAdd(product)}
+              className="inline-flex items-center gap-1 bg-primary px-3 py-2 text-[9px] tracking-[0.12em] text-primary-foreground uppercase"
+            >
+              <ShoppingBag className="h-3 w-3" /> Añadir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function FlorencioChat({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
+  const [open, setOpen] = useState(embedded);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [filters, setFilters] = useState<FlorencioFilters>({ keywords: [] });
+  const [thinking, setThinking] = useState(false);
+  const nextId = useRef(1);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { add } = useStore();
+  const { data: products = [] } = useQuery(productsQuery);
+  const { data: categories = [] } = useQuery(categoriesQuery);
+
+  const recommendations = useMemo(
+    () => rankFlorencioProducts(products, categories, filters, 3),
+    [products, categories, filters],
+  );
+
+  useEffect(() => {
+    if (embedded) return;
+
+    const openChat = () => setOpen(true);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    window.addEventListener("florencio:open-chat", openChat);
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("florencio:open-chat", openChat);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [embedded]);
+
+  useEffect(() => {
+    if (!open || messages.length) return;
+
+    setMessages([
+      {
+        id: nextId.current++,
+        role: "florencio",
+        text: "¡Hola! Soy Florencio. Estoy aquí para ayudarte a encontrar un detalle que se sienta perfecto.",
+      },
+      {
+        id: nextId.current++,
+        role: "florencio",
+        text: "Cuéntame para quién es, qué ocasión tienes y cuánto quieres invertir. Si no sabes exactamente qué buscas, yo te guío.",
+      },
+    ]);
+  }, [open, messages.length]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, thinking]);
+
+  const send = async (raw: string) => {
+    const text = raw.trim();
+    if (!text || thinking) return;
+
+    setMessages((prev) => [
+      ...prev,
+      { id: nextId.current++, role: "user", text },
+    ]);
+    setInput("");
+    setThinking(true);
+
+    try {
+      const result = await askFlorencioAI({
+        message: text,
+        history: messages
+          .slice(-8)
+          .map(({ role, text: messageText }) => ({
+            role,
+            text: messageText,
+          })),
+        currentFilters: filters,
+      });
+
+      const localFallback = parseFlorencioFilters(text);
+      const merged: FlorencioFilters = {
+        recipient:
+          result.filters.recipient ??
+          localFallback.recipient ??
+          filters.recipient,
+        occasion:
+          result.filters.occasion ??
+          localFallback.occasion ??
+          filters.occasion,
+        style: result.filters.style ?? localFallback.style ?? filters.style,
+        color: result.filters.color ?? localFallback.color ?? filters.color,
+        budgetMax:
+          result.filters.budgetMax ??
+          localFallback.budgetMax ??
+          filters.budgetMax,
+        keywords: Array.from(
+          new Set([
+            ...filters.keywords,
+            ...localFallback.keywords,
+            ...(result.keywords ?? []),
+            ...(result.filters.keywords ?? []),
+          ]),
+        ).slice(0, 16),
+      };
+
+      setFilters(merged);
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId.current++, role: "florencio", text: result.reply },
+      ]);
+    } catch (error) {
+      const parsed = parseFlorencioFilters(text);
+      const merged: FlorencioFilters = {
+        recipient: parsed.recipient ?? filters.recipient,
+        occasion: parsed.occasion ?? filters.occasion,
+        style: parsed.style ?? filters.style,
+        color: parsed.color ?? filters.color,
+        budgetMax: parsed.budgetMax ?? filters.budgetMax,
+        keywords: Array.from(
+          new Set([...filters.keywords, ...parsed.keywords]),
+        ).slice(0, 16),
+      };
+
+      setFilters(merged);
+      const parts = describeFlorencioFilters(merged);
+      const reply = parts.length
+        ? `Entendido. ${parts.join(" · ")}. Voy a cruzarlo con nuestro catálogo real.`
+        : "Entendido. Voy a tomar eso como punto de partida y buscar coincidencias en el catálogo real de Deluxury.";
+
+      setMessages((prev) => [
+        ...prev,
+        { id: nextId.current++, role: "florencio", text: reply },
+      ]);
+      console.warn("Florencio AI no disponible; usando recomendaciones locales.", error);
+    } finally {
+      setThinking(false);
+    }
+  };
+
+  const addRecommended = (product: Product) => {
+    add(product);
+    window.dispatchEvent(
+      new CustomEvent("florencio:product-selected", {
+        detail: { name: product.name },
+      }),
+    );
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: nextId.current++,
+        role: "florencio",
+        text: `¡Listo! Añadí ${product.name} a tu carrito. Si quieres, también puedo ayudarte a completar el detalle.`,
+      },
+    ]);
+  };
+
+  const visible = embedded || open;
+
+  return (
+    <>
+      {!embedded && open && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/20 backdrop-blur-[2px]"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={
+          embedded
+            ? "relative flex h-[680px] w-full min-w-0 flex-col overflow-hidden border-y border-border bg-background shadow-[0_30px_90px_-50px_rgba(0,0,0,0.55)] md:h-[720px]"
+            : `fixed inset-x-2 bottom-2 z-[80] flex h-[min(760px,calc(100dvh-16px))] w-auto min-w-0 flex-col overflow-hidden rounded-[24px] border border-primary/20 bg-background shadow-[0_30px_100px_-30px_rgba(0,0,0,0.55)] transition-[opacity,transform] duration-500 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:h-[min(720px,calc(100vh-24px))] sm:w-[min(430px,calc(100vw-48px))] sm:rounded-[28px] ${
+                visible
+                  ? "translate-y-0 opacity-100"
+                  : "pointer-events-none translate-y-8 opacity-0"
+              }`
+        }
+        aria-hidden={!visible}
+      >
+        <header className="flex shrink-0 items-center justify-between border-b border-border bg-secondary/45 px-5 py-4 md:px-7">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+              <Bot className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-display text-xl">Florencio</p>
+              <p className="text-[9px] tracking-[0.18em] text-muted-foreground uppercase">
+                Asistente floral de Deluxury
+              </p>
+            </div>
+          </div>
+
+          {!embedded && (
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Cerrar chat"
+              className="rounded-full border border-border p-2 transition hover:border-primary/50"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </header>
+
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 md:px-7 md:py-7"
+        >
+          <div className="max-w-2xl">
+            <p className="text-[10px] tracking-[0.22em] text-primary uppercase">
+              Tu momento, tu elección
+            </p>
+            <p className="mt-2 font-display text-2xl md:text-3xl">
+              Cuéntame qué quieres regalar.
+            </p>
+          </div>
+
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              {message.role === "florencio" ? (
+                <div className="flex max-w-[88%] items-start gap-2">
+                  <span className="mt-3 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                  <p className="border border-border bg-secondary/45 px-4 py-3 text-sm leading-relaxed">
+                    {message.text}
+                  </p>
+                </div>
+              ) : (
+                <div className="max-w-[82%] bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground">
+                  {message.text}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {thinking && (
+            <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+              <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" />
+              Florencio está pensando…
+            </div>
+          )}
+
+          {recommendations.length > 0 && messages.length > 1 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-2 px-1 text-[9px] tracking-[0.18em] text-muted-foreground uppercase">
+                <Sparkles className="h-3 w-3 text-primary" />
+                Selección para ti
+              </div>
+              {recommendations.map((product) => (
+                <ProductMiniCard
+                  key={product.id}
+                  product={product}
+                  onAdd={addRecommended}
+                />
+              ))}
+            </div>
+          )}
+
+          {products.length === 0 && messages.length > 1 && (
+            <div className="border border-border bg-secondary/40 p-4 text-xs leading-relaxed text-muted-foreground">
+              En cuanto el catálogo esté disponible, aquí aparecerán las piezas que mejor encajen contigo.
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-border bg-background px-4 py-4 pb-[max(16px,env(safe-area-inset-bottom))] md:px-6">
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {QUICK_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => send(prompt)}
+                className="shrink-0 rounded-full border border-border px-3 py-2 text-[9px] tracking-[0.05em] transition hover:border-primary/50"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send(input);
+            }}
+            className="flex items-center gap-2 border border-border bg-secondary/30 p-1.5 focus-within:border-primary/50"
+          >
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escríbele a Florencio…"
+              className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm outline-none"
+            />
+            <button
+              type="submit"
+              aria-label="Enviar"
+              className="flex h-10 w-10 shrink-0 items-center justify-center bg-primary text-primary-foreground disabled:opacity-40"
+              disabled={!input.trim() || thinking}
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+
+          <p className="mt-2 text-center text-[8px] tracking-[0.1em] text-muted-foreground uppercase">
+            <Bot className="mr-1 inline h-3 w-3" />
+            Catálogo real de Deluxury
+          </p>
+        </div>
+      </aside>
+    </>
+  );
+}
