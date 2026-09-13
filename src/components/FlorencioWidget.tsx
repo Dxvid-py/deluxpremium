@@ -124,21 +124,21 @@ export default function FlorencioWidget() {
 
   return (
     <div
-      className={`fixed right-3 bottom-4 z-[60] w-[164px] select-none transition-all duration-500 sm:right-6 sm:bottom-6 sm:w-[186px] ${
+      className={`fixed right-2 z-[60] w-[142px] select-none transition-[opacity,transform] duration-500 will-change-transform [bottom:max(12px,env(safe-area-inset-bottom))] sm:right-6 sm:bottom-6 sm:w-[186px] ${
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
       }`}
       aria-live="polite"
     >
       <button type="button" onClick={openChat} className="block w-full cursor-pointer text-left" aria-label="Abrir chat de Florencio">
-        <div className="relative mb-2 flex justify-end pr-2 sm:pr-3">
-          <div className="relative max-w-[150px] rounded-2xl border border-primary/20 bg-background/95 px-3 py-2.5 text-[11px] leading-snug shadow-[0_12px_32px_-16px_rgba(0,0,0,0.45)] backdrop-blur-md sm:max-w-[168px] sm:px-3.5 sm:py-3 sm:text-xs">
+        <div className="relative mb-1.5 flex justify-end pr-1.5 sm:mb-2 sm:pr-3">
+          <div className="relative max-w-[132px] rounded-2xl border border-primary/20 bg-background/95 px-2.5 py-2 text-[10px] leading-snug shadow-[0_12px_32px_-16px_rgba(0,0,0,0.45)] backdrop-blur-md sm:max-w-[168px] sm:px-3.5 sm:py-3 sm:text-xs">
             {message}
             <span className="absolute -bottom-1.5 right-8 h-3 w-3 rotate-45 border-r border-b border-primary/20 bg-background/95" />
           </div>
         </div>
 
-        <div className="relative mx-auto w-[124px] sm:w-[142px]">
-          <div className="aspect-square overflow-hidden rounded-full border border-primary/25 bg-[radial-gradient(circle_at_50%_35%,rgba(255,245,228,0.92),rgba(164,124,86,0.92))] p-1.5 shadow-[0_18px_45px_-20px_rgba(0,0,0,0.6)] transition-transform duration-500 hover:scale-105 sm:p-2">
+        <div className="relative mx-auto w-[104px] sm:w-[142px]">
+          <div className="aspect-square overflow-hidden rounded-full border border-primary/25 bg-[radial-gradient(circle_at_50%_35%,rgba(255,245,228,0.92),rgba(164,124,86,0.92))] p-1 shadow-[0_18px_45px_-20px_rgba(0,0,0,0.6)] transition-transform duration-500 hover:scale-105 sm:p-2">
             <div className="h-full w-full overflow-hidden rounded-full border border-white/45 bg-black/5">
               <video
                 key={videoSrc}
@@ -156,7 +156,7 @@ export default function FlorencioWidget() {
               />
             </div>
           </div>
-          <span className="absolute -right-1 -bottom-1 flex h-8 w-8 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-md">
+          <span className="absolute -right-1 -bottom-1 flex h-7 w-7 items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow-md sm:h-8 sm:w-8">
             <MessageCircle className="h-4 w-4" />
           </span>
         </div>
