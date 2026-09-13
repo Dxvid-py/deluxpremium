@@ -14,6 +14,7 @@ const DICT: Dict = {
   "nav.home": { es: "Inicio", en: "Home" },
   "nav.catalog": { es: "Catálogo", en: "Catalog" },
   "nav.atelier": { es: "Floristería", en: "Flower shop" },
+  "nav.florencio": { es: "Florencio", en: "Florencio" },
   "nav.contact": { es: "Contacto", en: "Contact" },
   "nav.panel": { es: "Panel", en: "Admin" },
   "nav.account": { es: "Mi cuenta", en: "My account" },

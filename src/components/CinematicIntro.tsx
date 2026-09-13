@@ -1,249 +1,146 @@
 import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import PetalCanvas from "./PetalCanvas";
 import { useI18n } from "@/lib/i18n";
-import introAudio from "@/assets/intro-deluxe.mp3.asset.json";
+import { settingsQuery } from "@/lib/queries";
 
 const SEEN_KEY = "fdp-intro-seen";
+const DEFAULT_AUDIO = "/audio/intro-deluxe.mp3";
 
-/**
- * Intro cinematográfica en tono claro: marfil → lluvia de pétalos →
- * aparición del logo → revelación de la marca → salida suave.
- * El audio arranca en silencio (política del navegador) y se activa solo.
- */
 export default function CinematicIntro() {
   const { t } = useI18n();
+  const { data: settings } = useQuery(settingsQuery);
   const [stage, setStage] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [muted, setMuted] = useState(true);
-  const [showUnlock, setShowUnlock] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Reproducción con desbloqueo: el navegador bloquea el sonido automático,
-  // pero SÍ permite el autoplay silenciado. Arrancamos en silencio y lo
-  // activamos al primer gesto del visitante (un clic/tap en cualquier parte
-  // o en el botón de sonido). Así el audio siempre se escucha cuando hay
-  // interacción, sin depender del formato del archivo.
-  useEffect(() => {
-    if (!mounted) return undefined;
-    const el = audioRef.current;
-    if (!el) return undefined;
-
-    // Arranca silenciado: autoplay permitido por la política del navegador.
-    el.muted = true;
-    el.volume = 0.55;
-    void el.play().then(() => setShowUnlock(true)).catch(() => {
-      // Si incluso silenciado bloquea, esperamos al primer gesto.
-      setShowUnlock(true);
-    });
-
-    const fadeIn = () => {
-      const id = window.setInterval(() => {
-        if (!audioRef.current) return window.clearInterval(id);
-        const next = Math.min(0.55, audioRef.current.volume + 0.05);
-        audioRef.current.volume = next;
-        if (next >= 0.55) window.clearInterval(id);
-        return undefined;
-      }, 90);
-    };
-
-    const unlock = () => {
-      const a = audioRef.current;
-      if (!a) return;
-      a.muted = false;
-      a.volume = 0;
-      void a.play().then(() => {
-        setMuted(false);
-        fadeIn();
-      }).catch(() => undefined);
-      setShowUnlock(false);
-    };
-
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      el.pause();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
+  const enabled = settings?.["intro_audio_enabled"] !== "false";
+  const audioSrc = settings?.["intro_audio_url"] || DEFAULT_AUDIO;
+  const backgroundImage = settings?.["intro_background_image_url"] || "/img/hero-01.jpg";
 
   useEffect(() => {
     let skip = false;
     try {
       skip = sessionStorage.getItem(SEEN_KEY) === "1";
     } catch {
-      /* ignorar */
+      /* storage not available */
     }
     if (skip || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
 
     setMounted(true);
     document.body.style.overflow = "hidden";
-
     const timers = [
-      window.setTimeout(() => setStage(1), 250),
-      window.setTimeout(() => setStage(2), 1000),
-      window.setTimeout(() => setStage(3), 2300),
-      window.setTimeout(() => setStage(4), 3900),
-      window.setTimeout(() => setStage(5), 5600),
+      window.setTimeout(() => setStage(1), 180),
+      window.setTimeout(() => setStage(2), 900),
+      window.setTimeout(() => setStage(3), 2100),
+      window.setTimeout(() => setStage(4), 3600),
+      window.setTimeout(() => setStage(5), 5200),
       window.setTimeout(() => {
         setMounted(false);
         document.body.style.overflow = "";
-        try {
-          sessionStorage.setItem(SEEN_KEY, "1");
-        } catch {
-          /* ignorar */
-        }
-      }, 6500),
+        try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
+      }, 6200),
     ];
-
     return () => {
-      timers.forEach((tm) => window.clearTimeout(tm));
+      timers.forEach(window.clearTimeout);
       document.body.style.overflow = "";
     };
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !enabled) return undefined;
+    const el = audioRef.current;
+    if (!el) return undefined;
+    el.muted = true;
+    el.volume = 0.6;
+    void el.play().catch(() => undefined);
+    setShowUnlock(true);
+
+    const unlockFromGesture = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.muted = false;
+      audio.volume = 0.6;
+      void audio.play().then(() => {
+        setMuted(false);
+        setShowUnlock(false);
+      }).catch(() => undefined);
+    };
+
+    window.addEventListener("pointerdown", unlockFromGesture, { once: true, capture: true });
+    window.addEventListener("keydown", unlockFromGesture, { once: true, capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockFromGesture, true);
+      window.removeEventListener("keydown", unlockFromGesture, true);
+      el.pause();
+    };
+  }, [mounted, enabled, audioSrc]);
+
+  const activateAudio = async () => {
+    const audio = audioRef.current;
+    if (!audio || !enabled) return;
+    try {
+      audio.currentTime = 0;
+      audio.muted = false;
+      audio.volume = 0.6;
+      await audio.play();
+      setMuted(false);
+      setShowUnlock(false);
+    } catch {
+      // Si el archivo no está publicado o el navegador no concede permiso,
+      // el intro sigue funcionando en silencio sin romper la experiencia.
+    }
+  };
 
   const close = () => {
     setStage(5);
     window.setTimeout(() => {
       setMounted(false);
       document.body.style.overflow = "";
-      try {
-        sessionStorage.setItem(SEEN_KEY, "1");
-      } catch {
-        /* ignorar */
-      }
-    }, 700);
+      try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
+    }, 500);
   };
 
   if (!mounted) return null;
 
   return (
-    <div
-      className={`fixed inset-0 z-100 overflow-hidden bg-background transition-opacity duration-1000 ${
-        stage >= 5 ? "pointer-events-none opacity-0" : "opacity-100"
-      }`}
-    >
-      {/* Fotografía floral que emerge del marfil */}
-      <div
-        className={`absolute inset-0 transition-all duration-[2000ms] ease-out ${
-          stage >= 4 ? "scale-100 opacity-35" : "scale-110 opacity-0"
-        }`}
-        style={{
-          backgroundImage: "url(/img/hero-01.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+    <div className={`fixed inset-0 z-[100] overflow-hidden bg-background transition-opacity duration-700 ${stage >= 5 ? "pointer-events-none opacity-0" : "opacity-100"}`}>
+      <div className={`absolute inset-0 bg-cover bg-center transition-all duration-[1800ms] ease-out ${stage >= 4 ? "scale-100 opacity-35" : "scale-110 opacity-0"}`} style={{ backgroundImage: `url(${backgroundImage})` }} />
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background/80 to-background" />
       <div className="diffused-light absolute inset-0" />
+      {stage >= 1 && <PetalCanvas density={36} speed={1.05} burst />}
 
-      {stage >= 1 && <PetalCanvas density={40} speed={1.2} burst />}
-
-      <div className="relative flex h-full flex-col items-center justify-center px-6 text-center">
-        <div
-          className={`relative transition-all duration-[1500ms] ease-out ${
-            stage >= 2 ? "scale-100 opacity-100 blur-0" : "scale-90 opacity-0 blur-lg"
-          }`}
-        >
-          <span
-            className={`pointer-events-none absolute -inset-20 rounded-full bg-[radial-gradient(circle,var(--rose-glow),transparent_65%)] ${
-              stage >= 2 ? "aura-ring" : "opacity-0"
-            }`}
-          />
-          <img
-            src="/logo.png"
-            alt="Floristería Deluxury"
-            className="relative h-36 w-auto sm:h-48 md:h-56"
-          />
+      <div className="relative flex h-full flex-col items-center justify-center px-5 text-center sm:px-6">
+        <div className={`relative transition-all duration-[1200ms] ease-out ${stage >= 2 ? "scale-100 opacity-100 blur-0" : "scale-90 opacity-0 blur-lg"}`}>
+          <span className={`pointer-events-none absolute -inset-20 rounded-full bg-[radial-gradient(circle,var(--rose-glow),transparent_65%)] ${stage >= 2 ? "aura-ring" : "opacity-0"}`} />
+          <img src="/logo.png" alt="Floristería Deluxury" className="relative h-28 w-auto sm:h-40 md:h-52" />
         </div>
 
-        <p
-          className={`eyebrow mt-10 transition-all duration-1000 ${
-            stage >= 3 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
-          }`}
-        >
-          {t("intro.location")}
-        </p>
-        <h1
-          className={`mt-5 font-display text-4xl leading-[1.05] transition-all duration-[1400ms] sm:text-6xl md:text-7xl ${
-            stage >= 3 ? "translate-y-0 opacity-100 blur-0" : "translate-y-6 opacity-0 blur-md"
-          }`}
-        >
+        <p className={`eyebrow mt-8 transition-all duration-1000 sm:mt-10 ${stage >= 3 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>{t("intro.location")}</p>
+        <h1 className={`mt-4 font-display text-4xl leading-[1.02] transition-all duration-[1200ms] sm:text-6xl md:text-7xl ${stage >= 3 ? "translate-y-0 opacity-100 blur-0" : "translate-y-6 opacity-0 blur-md"}`}>
           <span className="text-lux-gradient block">Floristería</span>
-          <span className="text-lux-gradient mt-1 block tracking-[0.16em]">Deluxury</span>
+          <span className="text-lux-gradient mt-1 block tracking-[0.14em]">Deluxury</span>
         </h1>
-        <div
-          className={`hairline mt-8 transition-all duration-1000 ${
-            stage >= 4 ? "w-56 opacity-100" : "w-0 opacity-0"
-          }`}
-        />
-        <p
-          className={`mt-6 max-w-md text-sm font-light text-muted-foreground transition-all duration-1000 ${
-            stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
-          }`}
-        >
-          {t("intro.tagline")}
-        </p>
+        <div className={`hairline mt-7 transition-all duration-1000 ${stage >= 4 ? "w-48 opacity-100 sm:w-56" : "w-0 opacity-0"}`} />
+        <p className={`mt-5 max-w-md text-sm font-light leading-relaxed text-muted-foreground transition-all duration-1000 ${stage >= 4 ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>{t("intro.tagline")}</p>
       </div>
 
-      <audio ref={audioRef} src={introAudio.url} preload="auto" playsInline loop />
+      {enabled && <audio ref={audioRef} src={audioSrc} preload="auto" playsInline loop />}
 
-      {/* Aviso para activar el sonido al primer gesto */}
-      {showUnlock && (
-        <button
-          onClick={() => {
-            const a = audioRef.current;
-            if (!a) return;
-            a.muted = false;
-            a.volume = 0;
-            void a.play().then(() => {
-              setMuted(false);
-              setShowUnlock(false);
-              const id = window.setInterval(() => {
-                if (!audioRef.current) return window.clearInterval(id);
-                const next = Math.min(0.55, audioRef.current.volume + 0.05);
-                audioRef.current.volume = next;
-                if (next >= 0.55) window.clearInterval(id);
-                return undefined;
-              }, 90);
-            }).catch(() => undefined);
-          }}
-          className="press absolute bottom-6 left-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-2 text-[10px] tracking-[0.3em] text-foreground uppercase backdrop-blur transition-colors hover:border-primary hover:text-primary"
-        >
-          <Volume2 className="h-4 w-4 animate-pulse" />
-          {t("cta.sound")}
+      {enabled && showUnlock && (
+        <button type="button" onClick={() => void activateAudio()} className="press absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-border bg-background/90 px-4 py-2.5 text-[10px] tracking-[0.24em] text-foreground uppercase shadow-sm backdrop-blur-md sm:bottom-6 sm:left-6">
+          <Volume2 className="h-4 w-4" /> Activar sonido
         </button>
       )}
-
-      {!showUnlock && (
-        <button
-          onClick={() => {
-            setMuted((m) => {
-              const next = !m;
-              if (audioRef.current) {
-                audioRef.current.muted = next;
-                if (!next) void audioRef.current.play().catch(() => undefined);
-              }
-              return next;
-            });
-          }}
-          aria-label={t("cta.sound")}
-          className="press absolute bottom-6 left-6 inline-flex items-center gap-2 text-[10px] tracking-[0.3em] text-muted-foreground uppercase transition-colors hover:text-primary"
-        >
+      {enabled && !showUnlock && (
+        <button type="button" onClick={() => { const audio = audioRef.current; if (!audio) return; audio.muted = !audio.muted; setMuted(audio.muted); }} aria-label={t("cta.sound")} className="press absolute bottom-5 left-5 text-[10px] tracking-[0.24em] text-muted-foreground uppercase hover:text-primary sm:bottom-6 sm:left-6">
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          {t("cta.sound")}
         </button>
       )}
-
-      <button
-        onClick={close}
-        className="press absolute right-6 bottom-6 text-[10px] tracking-[0.3em] text-muted-foreground uppercase transition-colors hover:text-primary"
-      >
-        {t("cta.skipIntro")}
-      </button>
+      <button type="button" onClick={close} className="press absolute right-5 bottom-5 text-[10px] tracking-[0.24em] text-muted-foreground uppercase hover:text-primary sm:right-6 sm:bottom-6">{t("cta.skipIntro")}</button>
     </div>
   );
 }

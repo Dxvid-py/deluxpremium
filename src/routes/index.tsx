@@ -6,7 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import CollectionsShowcase from "@/components/CollectionsShowcase";
 import GallerySection from "@/components/GallerySection";
 import InstagramSection from "@/components/InstagramSection";
-import { productsQuery } from "@/lib/queries";
+import { productsQuery, settingsQuery } from "@/lib/queries";
 import { useParallax, useReveal } from "@/hooks/use-reveal";
 import { useI18n } from "@/lib/i18n";
 
@@ -44,6 +44,7 @@ function Home() {
   useParallax();
   const { t } = useI18n();
   const { data: products } = useQuery(productsQuery);
+  const { data: settings } = useQuery(settingsQuery);
   const featured = (products ?? []).filter((p) => p.is_featured).slice(0, 6);
 
   return (
@@ -113,7 +114,7 @@ function Home() {
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 py-24 md:grid-cols-2 md:px-8 md:py-32">
           <div className="aura-glow rounded-sm" data-anim="clip" data-parallax="0.08">
             <img
-              src="/img/hero-02.jpg"
+              src={settings?.["home_editorial_image_url"] ?? "/img/hero-02.jpg"}
               alt="Composición floral blanca del atelier"
               loading="lazy"
               width={1600}

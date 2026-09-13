@@ -18,6 +18,9 @@ import {
   type Product,
 } from "@/lib/queries";
 import ImageField from "@/components/ImageField";
+import CustomersPanel from "@/components/admin/CustomersPanel";
+import FlorencioAdminPanel from "@/components/admin/FlorencioAdminPanel";
+import HomeMediaPanel from "@/components/admin/HomeMediaPanel";
 import { formatMoney, slugify } from "@/lib/format";
 
 export const Route = createFileRoute("/admin")({
@@ -33,7 +36,7 @@ export const Route = createFileRoute("/admin")({
   component: Admin,
 });
 
-type Tab = "pedidos" | "productos" | "categorias" | "galeria" | "instagram" | "config";
+type Tab = "pedidos" | "productos" | "categorias" | "galeria" | "instagram" | "clientes" | "inicio" | "florencio" | "config";
 
 function Admin() {
   const [session, setSession] = useState<Session | null>(null);
@@ -108,6 +111,9 @@ function Admin() {
     { key: "categorias", label: "Categorías" },
     { key: "galeria", label: "Galería" },
     { key: "instagram", label: "Instagram" },
+    { key: "clientes", label: "Clientes" },
+    { key: "inicio", label: "Inicio" },
+    { key: "florencio", label: "Florencio" },
     { key: "config", label: "TRM y ajustes" },
   ];
 
@@ -149,6 +155,9 @@ function Admin() {
           {tab === "categorias" && <CategoriesPanel />}
           {tab === "galeria" && <GalleryPanel />}
           {tab === "instagram" && <InstagramPanel />}
+          {tab === "clientes" && <CustomersPanel />}
+          {tab === "inicio" && <HomeMediaPanel />}
+          {tab === "florencio" && <FlorencioAdminPanel />}
           {tab === "config" && <SettingsPanel />}
         </div>
       </div>
@@ -950,6 +959,7 @@ const SETTING_LABELS: Record<string, string> = {
   hours_weekdays: "Horario lunes a sábado",
   hours_sunday: "Horario domingo",
   hours_whatsapp: "Pedidos por WhatsApp",
+  intro_audio_url: "URL del audio de intro",
 };
 
 const TOGGLE_LABELS: Record<string, string> = {
