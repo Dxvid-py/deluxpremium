@@ -122,6 +122,12 @@ export default function FlorencioCatalogAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]); const [filters, setFilters] = useState<FlorencioFilters>({ keywords: [] });
   const [recommendations, setRecommendations] = useState<ReturnType<typeof rankFlorencioProducts>>([]); const [recommendationHistory, setRecommendationHistory] = useState<RecommendationRow[]>([]); const [orders, setOrders] = useState<OrderRow[]>([]); const [account, setAccount] = useState<{ full_name: string | null; phone: string | null; email: string | null } | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
+  const location = useLocation();
+  // El mismo componente se usa embebido y chiquito dentro de /catalogo, y a
+  // pantalla completa en /florencio. isCatalogPage decide cuál modo tocaba,
+  // pero nunca se había declarado — por eso el componente truena al montar.
+  const isCatalogPage = location.pathname.startsWith("/catalogo");
+  const [catalogChatOpen, setCatalogChatOpen] = useState(false);
   const profileImage = settings?.["florencio_profile_image_url"] || settings?.["florencio_intro_image_url"] || "/img/florencio.png";
   const media = useMemo(() => parseMedia(settings?.["florencio_media_json"]), [settings]);
   const galleryMedia = media.length ? media : [{ type: "image" as const, url: profileImage, caption: "Florencio en Deluxury" }];
