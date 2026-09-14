@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
 
-const SALUDANDO_VIDEO = "/video/florencio-saludando.mp4";
-const RAMO_VIDEO = "/video/florencio-con-ramo.mp4";
-const REAPPEAR_EVERY_MS = 15_000;
-const FALLBACK_HIDE_MS = 8_000;
+const SALUDANDO_VIDEO = "/video/florencio-saludando.webm";
+const RAMO_VIDEO = "/video/florencio-con-ramo.webm";
+const GREETING_EVERY_MS = 15_000;
+const DISPLAY_MS = 5_500;
+const PRODUCT_DISPLAY_MS = 6_500;
 
 type FlorencioMode = "greeting" | "product";
 type ProductSelectedEvent = CustomEvent<{ name?: string }>;
@@ -28,12 +29,12 @@ function randomMessage(messages: string[]) {
 
 export default function FlorencioWidget() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const [mode, setMode] = useState<FlorencioMode | null>(null);
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
   const hideTimer = useRef<number | null>(null);
+  const greetingTimer = useRef<number | null>(null);
 
   const clearHideTimer = useCallback(() => {
     if (hideTimer.current !== null) {
@@ -42,39 +43,78 @@ export default function FlorencioWidget() {
     }
   }, []);
 
+  const clearGreetingTimer = useCallback(() => {
+    if (greetingTimer.current !== null) {
+      window.clearTimeout(greetingTimer.current);
+      greetingTimer.current = null;
+    }
+  }, []);
+
   const hide = useCallback(() => {
     clearHideTimer();
     setVisible(false);
   }, [clearHideTimer]);
 
+  const scheduleGreeting = useCallback(() => {
+    clearGreetingTimer();
+    greetingTimer.current = window.setTimeout(() => {
+      if (!document.hidden && pathname !== "/florencio") {
+        setMode("greeting");
+        setMessage(randomMessage(GREETING_MESSAGES));
+        setAnimationKey((value) => value + 1);
+        setVisible(true);
+        clearHideTimer();
+        hideTimer.current = window.setTimeout(() => {
+          setVisible(false);
+          scheduleGreeting();
+        }, DISPLAY_MS);
+      } else if (pathname !== "/florencio") {
+        scheduleGreeting();
+      }
+    }, GREETING_EVERY_MS);
+  }, [clearGreetingTimer, clearHideTimer, pathname]);
+
   const show = useCallback(
     (nextMode: FlorencioMode, nextMessage: string) => {
+      clearGreetingTimer();
       clearHideTimer();
       setMode(nextMode);
       setMessage(nextMessage);
       setAnimationKey((value) => value + 1);
       setVisible(true);
-      hideTimer.current = window.setTimeout(hide, FALLBACK_HIDE_MS);
+      hideTimer.current = window.setTimeout(() => {
+        setVisible(false);
+        scheduleGreeting();
+      }, nextMode === "product" ? PRODUCT_DISPLAY_MS : DISPLAY_MS);
     },
-    [clearHideTimer, hide],
+    [clearGreetingTimer, clearHideTimer, scheduleGreeting],
   );
 
   const openFlorencio = () => {
     if (pathname === "/florencio") return;
     hide();
-    void navigate({ to: "/florencio" });
+    clearGreetingTimer();
+    window.location.assign("/florencio");
   };
 
   useEffect(() => {
     if (pathname === "/florencio") {
       hide();
+      clearGreetingTimer();
+      setMode(null);
+      return undefined;
     }
-  }, [hide, pathname]);
+
+    scheduleGreeting();
+    return () => {
+      clearGreetingTimer();
+      clearHideTimer();
+    };
+  }, [clearGreetingTimer, clearHideTimer, hide, pathname, scheduleGreeting]);
 
   useEffect(() => {
     const onProductSelected = (event: Event) => {
       if (pathname === "/florencio") return;
-
       const customEvent = event as ProductSelectedEvent;
       const name = customEvent.detail?.name?.trim() ?? "";
       const base = randomMessage(PRODUCT_MESSAGES);
@@ -82,24 +122,8 @@ export default function FlorencioWidget() {
     };
 
     window.addEventListener("florencio:product-selected", onProductSelected);
-    return () =>
-      window.removeEventListener("florencio:product-selected", onProductSelected);
+    return () => window.removeEventListener("florencio:product-selected", onProductSelected);
   }, [pathname, show]);
-
-  useEffect(() => {
-    if (pathname === "/florencio") return undefined;
-
-    // Florencio reaparece cada 15 segundos mientras no esté visible.
-    const interval = window.setInterval(() => {
-      if (!document.hidden && !visible) {
-        show("greeting", randomMessage(GREETING_MESSAGES));
-      }
-    }, REAPPEAR_EVERY_MS);
-
-    return () => window.clearInterval(interval);
-  }, [pathname, show, visible]);
-
-  useEffect(() => clearHideTimer, [clearHideTimer]);
 
   if (pathname === "/florencio" || !mode) return null;
 
@@ -148,7 +172,10 @@ export default function FlorencioWidget() {
 
       <button
         type="button"
-        onClick={hide}
+        onClick={() => {
+          hide();
+          scheduleGreeting();
+        }}
         aria-label="Ocultar a Florencio"
         className="absolute -top-1 right-0 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-white/95 text-muted-foreground shadow-sm transition hover:text-foreground"
       >
