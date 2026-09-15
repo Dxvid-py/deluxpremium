@@ -34,6 +34,14 @@ function Collection() {
   const category = (categories ?? []).find((c) => c.slug === slug);
   const list = (products ?? []).filter((p) => p.is_active && p.category_id === category?.id);
 
+  const slugAndName = `${slug} ${category?.name ?? ""}`.toLowerCase();
+  const petalType =
+    slugAndName.includes("condol")
+      ? "white"
+      : slugAndName.includes("evento") || slugAndName.includes("boda")
+        ? "mixed"
+        : "red";
+
   return (
     <div>
       <section className="relative h-[62svh] min-h-[420px] overflow-hidden">
@@ -45,7 +53,7 @@ function Collection() {
           className="ken-burns h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/40" />
-        <PetalCanvas density={14} speed={0.7} />
+        <PetalCanvas density={14} speed={0.7} petalType={petalType} />
         <div className="absolute inset-0 flex items-end">
           <div className="mx-auto w-full max-w-7xl px-5 pb-16 md:px-8">
             <Link to="/catalogo" className="eyebrow hover:text-cream">
@@ -60,7 +68,6 @@ function Collection() {
           </div>
         </div>
       </section>
-
       <div className="mx-auto max-w-7xl px-5 py-20 md:px-8">
         {list.length === 0 ? (
           <p className="font-display text-2xl text-muted-foreground">
