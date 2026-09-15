@@ -1,128 +1,245 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { categoriesQuery, type Category } from "@/lib/queries";
 import { useI18n, useLocalizedContent } from "@/lib/i18n";
 import { usePetalBurst } from "@/lib/petal-burst";
 
-const CYCLE_MS = 6000;
+const CYCLE_MS = 6500;
 
 /**
- * Colecciones: paneles verticales que se expanden (acordeón editorial).
- * Autociclo suave, expansión al pasar el cursor/tap y apilado en móvil.
- * Sólo el nombre de cada colección — sin descripción — para que la
- * selección se sienta más directa y visual.
+ * Carrusel editorial estable para la sección de Floristería del home.
+ * Tres tarjetas siempre mantienen su sitio: la central es protagonista y
+ * las laterales actúan como adelanto. En móvil se convierte en una sola tarjeta
+ * para evitar scroll horizontal de página.
+ *
+ * Condolencias utiliza una variante especial de la animación:
+ * un único PNG blanco se duplica, rota y se distribuye por la pantalla.
  */
 export default function CollectionsShowcase() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const { burst } = usePetalBurst();
-  const { data: categories } = useQuery(categoriesQuery);
-  const slides: Category[] = (categories ?? []).filter((c) => c.is_active).slice(0, 3);
-  const L = useLocalizedContent(slides, ["name"]);
 
+  const { data: categories } = useQuery(categoriesQuery);
+
+  const slides = useMemo<Category[]>(
+    () => (categories ?? []).filter((c) => c.is_active).slice(0, 3),
+    [categories],
+  );
+
+  const L = useLocalizedContent(slides, ["name"]);
   const [active, setActive] = useState(0);
-  const [hovered, setHovered] = useState<number | null>(null);
-  const shown = hovered ?? active;
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (slides.length < 2 || hovered !== null) return undefined;
-    const id = window.setTimeout(() => setActive((a) => (a + 1) % slides.length), CYCLE_MS);
-    return () => window.clearTimeout(id);
-  }, [active, hovered, slides.length]);
+    if (slides.length < 2 || paused) return undefined;
+
+    const id = window.setInterval(
+      () => setActive((current) => (current + 1) % slides.length),
+      CYCLE_MS,
+    );
+
+    return () => window.clearInterval(id);
+  }, [paused, slides.length]);
+
+  useEffect(() => {
+    if (active >= slides.length && slides.length) setActive(0);
+  }, [active, slides.length]);
 
   if (slides.length === 0) return null;
 
-  const onSelect = (e: React.MouseEvent<HTMLAnchorElement>, slug: string) => {
-    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
-    burst(e.clientX, e.clientY, () => {
-      navigate({ to: "/coleccion/$slug", params: { slug } });
-    });
+  const go = (offset: number) =>
+    setActive((current) => (current + offset + slides.length) % slides.length);
+
+  const handleCollectionClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    category: Category,
+  ) => {
+    // Dejamos que el navegador/TanStack maneje clicks con modificadores:
+    // Ctrl/Cmd, Shift, Alt o botón distinto al izquierdo.
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const isCondolencias =
+      category.slug.toLowerCase().includes("condol") ||
+      category.name.toLowerCase().includes("condol");
+
+    burst(
+      event.clientX,
+      event.clientY,
+      () => {
+        navigate({
+          to: "/coleccion/$slug",
+          params: { slug: category.slug },
+        });
+      },
+      {
+        petalType: isCondolencias ? "white" : "default",
+      },
+    );
   };
 
   return (
-    <section className="relative overflow-hidden py-24 md:py-32">
+    <section className="relative overflow-hidden border-y border-border/60 py-20 md:py-28">
       <div className="diffused-light pointer-events-none absolute inset-0" />
 
       <div className="relative mx-auto max-w-7xl px-5 md:px-8">
-        <div className="max-w-xl">
-          <p className="eyebrow" data-anim="left">
-            {t("home.collections.eyebrow")}
-          </p>
-          <h2 className="mt-4 font-display text-4xl leading-tight md:text-5xl" data-anim="letters">
-            {t("home.collections.title1")}{" "}
-            <span className="text-lux-gradient italic">{t("home.collections.title2")}</span>
-          </h2>
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-xl">
+            <p className="eyebrow" data-anim="left">
+              {t("home.collections.eyebrow")}
+            </p>
+
+            <h2
+              className="mt-4 font-display text-4xl leading-tight md:text-5xl"
+              data-anim="letters"
+            >
+              {t("home.collections.title1")}{" "}
+              <span className="text-lux-gradient italic">
+                {t("home.collections.title2")}
+              </span>
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2" data-anim="right">
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Anterior"
+              className="press flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 backdrop-blur hover:border-primary hover:text-primary"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Siguiente"
+              className="press flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/80 backdrop-blur hover:border-primary hover:text-primary"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div
-          className="mt-12 flex flex-col gap-4 md:mt-16 md:h-[560px] md:flex-row"
-          data-anim="fade-up"
-          onMouseLeave={() => setHovered(null)}
+          className="relative mt-10 overflow-hidden md:mt-14"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onTouchStart={() => setPaused(true)}
+          onTouchEnd={() => setPaused(false)}
         >
-          {slides.map((c, i) => {
-            const open = shown === i;
-            return (
-              <a
-                key={c.id}
-                href={`/coleccion/${c.slug}`}
-                onClick={(e) => onSelect(e, c.slug)}
-                onMouseEnter={() => setHovered(i)}
-                onFocus={() => setHovered(i)}
-                className={`group relative isolate block cursor-pointer overflow-hidden rounded-sm ring-1 transition-all duration-[1100ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  open ? "ring-primary/35" : "ring-border"
-                } h-[220px] md:h-full ${open ? "md:flex-[3.4]" : "md:flex-[1]"}`}
-              >
-                <img
-                  src={c.image_url}
-                  alt={L(c, "name")}
-                  loading="lazy"
-                  className={`absolute inset-0 h-full w-full object-cover transition-all duration-[1600ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                    open ? "scale-105 saturate-100" : "scale-100 saturate-[0.55]"
-                  }`}
-                />
-                <span
-                  className={`absolute inset-0 transition-opacity duration-1000 ${
-                    open
-                      ? "bg-gradient-to-t from-foreground/85 via-foreground/20 to-transparent"
-                      : "bg-gradient-to-t from-foreground/75 via-foreground/30 to-foreground/10"
-                  }`}
-                />
+          <div className="flex min-w-0 items-stretch gap-3 md:gap-5">
+            {slides.map((category, index) => {
+              const position =
+                (index - active + slides.length) % slides.length;
+              const current = position === 0;
+              const next = position === 1;
+              const previous = position === slides.length - 1;
+              const visible = current || next || previous;
 
-                {/* Índice */}
-                <span className="absolute top-5 left-5 font-display text-sm tracking-[0.35em] text-cream-hi/80">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-
-                {/* Nombre vertical cuando está cerrado (sólo escritorio) */}
-                <span
-                  className={`absolute bottom-6 left-6 hidden origin-bottom-left rotate-180 font-display text-2xl tracking-[0.12em] text-cream-hi transition-opacity duration-500 [writing-mode:vertical-rl] md:block ${
-                    open ? "opacity-0" : "opacity-100"
-                  }`}
-                >
-                  {L(c, "name")}
-                </span>
-
-                {/* Contenido abierto: sólo el nombre + CTA, sin descripción */}
+              return (
                 <div
-                  className={`absolute inset-x-0 bottom-0 p-6 transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] md:p-9 ${
-                    open ? "translate-y-0 opacity-100" : "translate-y-4 opacity-100 md:opacity-0"
-                  }`}
+                  key={category.id}
+                  className={`min-w-0 shrink-0 transition-[width,opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                    slides.length === 1
+                      ? "w-full"
+                      : current
+                        ? "w-full md:w-[64%]"
+                        : "w-[84%] md:w-[20%]"
+                  } ${visible ? "opacity-100" : "hidden opacity-0 md:block"}`}
                 >
-                  <h3 className="font-display text-2xl leading-tight text-cream-hi md:text-4xl">
-                    {L(c, "name")}
-                  </h3>
-                  <span className="mt-4 block h-px w-16 bg-gold-soft/70" />
-                  <span className="mt-4 inline-flex items-center gap-3 border-b border-gold-soft/60 pb-1 text-[10px] tracking-[0.3em] text-cream-hi uppercase transition-colors group-hover:border-gold-soft">
-                    {t("cta.viewCollection")}
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                  </span>
+                  <Link
+                    to="/coleccion/$slug"
+                    params={{ slug: category.slug }}
+                    onClick={(event) =>
+                      handleCollectionClick(event, category)
+                    }
+                    className={`group relative block h-[420px] overflow-hidden rounded-sm ring-1 ring-border transition-transform duration-700 md:h-[520px] ${
+                      current
+                        ? "md:hover:-translate-y-1 md:hover:ring-primary/50"
+                        : "md:brightness-[0.72]"
+                    }`}
+                  >
+                    <img
+                      src={category.image_url}
+                      alt={L(category, "name")}
+                      loading={current ? "eager" : "lazy"}
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-[1.035]"
+                    />
+
+                    <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {current && (
+                      <span className="absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,transparent,rgba(0,0,0,0.18))]" />
+                    )}
+
+                    <div className="absolute inset-x-0 bottom-0 p-6 md:p-9">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <span className="text-[10px] tracking-[0.28em] text-cream-hi/70 uppercase">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+
+                          <h3
+                            className={`mt-2 font-display leading-none text-cream-hi ${
+                              current
+                                ? "text-4xl md:text-5xl"
+                                : "text-2xl md:text-3xl"
+                            }`}
+                          >
+                            {L(category, "name")}
+                          </h3>
+                        </div>
+
+                        {current && (
+                          <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border border-cream-hi/40 text-cream-hi md:flex">
+                            <ArrowRight className="h-4 w-4" />
+                          </span>
+                        )}
+                      </div>
+
+                      {current && (
+                        <p className="mt-4 text-[10px] tracking-[0.24em] text-cream-hi/80 uppercase">
+                          {t("cta.viewCollection")}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
                 </div>
-              </a>
-            );
-          })}
+              );
+            })}
+          </div>
+        </div>
+
+        <div
+          className="mt-6 flex items-center justify-center gap-2"
+          aria-label="Selector de colecciones"
+        >
+          {slides.map((category, index) => (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => setActive(index)}
+              aria-label={`Ir a ${L(category, "name")}`}
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                index === active
+                  ? "w-10 bg-primary"
+                  : "w-2 bg-border hover:bg-primary/50"
+              }`}
+            />
+          ))}
         </div>
       </div>
     </section>
