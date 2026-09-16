@@ -14,6 +14,8 @@ export type FlorencioRecommendation = Product & {
   matchReasons: string[];
 };
 
+const RECOMMENDATION_MARKER = "__florencio_recommendation__";
+
 const STOPWORDS = new Set([
   "para", "una", "uno", "con", "que", "quiero", "busco", "algo", "como", "del", "por",
   "los", "las", "un", "una", "y", "de", "el", "en", "me", "mi", "mis", "es", "tengo",
@@ -119,27 +121,36 @@ export function rankFlorencioProducts(
   filters: FlorencioFilters,
   limit = 3,
 ): FlorencioRecommendation[] {
+  // Seguridad principal: si Florencio todavía está conversando o descubriendo
+  // necesidades, NO se muestran productos.
+  if (!filters.keywords.includes(RECOMMENDATION_MARKER)) return [];
+
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
 
   return products
     .filter((product) => product.is_active && Number(product.stock) !== 0)
+    // El presupuesto es un límite duro, no una penalización.
+    .filter((product) => {
+      if (!filters.budgetMax) return true;
+      return Number(product.price_cop) <= filters.budgetMax;
+    })
     .map((product) => {
-      const category = product.category_id ? categoryMap.get(product.category_id) : undefined;
+      const category = product.category_id
+        ? categoryMap.get(product.category_id)
+        : undefined;
+
       const text = productText(product, category);
       let score = Number(product.is_featured) * 4;
       const reasons: string[] = [];
 
       if (filters.budgetMax) {
-        const price = Number(product.price_cop);
-        if (price <= filters.budgetMax) {
-          score += 25;
-          reasons.push("entra en tu presupuesto");
-        } else {
-          score -= Math.min(30, Math.ceil(((price - filters.budgetMax) / filters.budgetMax) * 30));
-        }
+        score += 25;
+        reasons.push("entra en tu presupuesto");
       }
 
-      const groups: Array<[string | undefined, Record<string, string[]> | undefined, number, string]> = [
+      const groups: Array<
+        [string | undefined, Record<string, string[]> | undefined, number, string]
+      > = [
         [filters.recipient, RECIPIENT_TERMS, 24, "encaja con el destinatario"],
         [filters.occasion, OCCASION_TERMS, 30, "encaja con la ocasión"],
         [filters.style, STYLE_TERMS, 22, "coincide con el estilo"],
@@ -159,22 +170,53 @@ export function rankFlorencioProducts(
         reasons.push(`tiene tonos ${filters.color}`);
       }
 
-      const keywordMatches = filters.keywords.filter((keyword) => text.includes(keyword));
-      score += Math.min(20, keywordMatches.length * 4);
-      if (keywordMatches.length) reasons.push("comparte detalles que mencionaste");
+      const keywordMatches = filters.keywords
+        .filter((keyword) => keyword !== RECOMMENDATION_MARKER)
+        .filter((keyword) => text.includes(keyword));
 
-      return { ...product, matchScore: Math.max(0, score), matchReasons: reasons.slice(0, 3) };
+      score += Math.min(20, keywordMatches.length * 4);
+
+      if (keywordMatches.length) {
+        reasons.push("comparte detalles que mencionaste");
+      }
+
+      return {
+        ...product,
+        matchScore: Math.max(0, score),
+        matchReasons: reasons.slice(0, 3),
+      };
     })
-    .sort((a, b) => b.matchScore - a.matchScore || Number(b.is_featured) - Number(a.is_featured))
+    .sort(
+      (a, b) =>
+        b.matchScore - a.matchScore ||
+        Number(b.is_featured) - Number(a.is_featured),
+    )
     .slice(0, limit);
 }
 
 export function describeFlorencioFilters(filters: FlorencioFilters) {
   const parts: string[] = [];
-  if (filters.recipient) parts.push(filters.recipient === "pareja" ? "pareja" : filters.recipient);
+  if (filters.recipient) {
+    parts.push(filters.recipient === "pareja" ? "pareja" : filters.recipient);
+  }
   if (filters.occasion) parts.push(filters.occasion);
   if (filters.style) parts.push(filters.style);
   if (filters.color) parts.push(`tonos ${filters.color}`);
-  if (filters.budgetMax) parts.push(`hasta $${filters.budgetMax.toLocaleString("es-CO")}`);
+  if (filters.budgetMax) {
+    parts.push(`hasta $${filters.budgetMax.toLocaleString("es-CO")}`);
+  }
   return parts;
+}
+
+export function florencioCanRecommend(filters: FlorencioFilters) {
+  return filters.keywords.includes(RECOMMENDATION_MARKER);
+}
+
+export function markFlorencioRecommendation(filters: FlorencioFilters): FlorencioFilters {
+  return {
+    ...filters,
+    keywords: Array.from(
+      new Set([...(filters.keywords ?? []), RECOMMENDATION_MARKER]),
+    ),
+  };
 }
