@@ -12,6 +12,7 @@ import {
   Menu,
   MessageCircle,
   Package,
+  RotateCcw,
   Send,
   ShoppingBag,
   Sparkles,
@@ -23,9 +24,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { categoriesQuery, productsQuery, settingsQuery, type Product } from "@/lib/queries";
 import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
-import { useContentTranslator } from "@/lib/i18n";
+import { useContentTranslator, useI18n } from "@/lib/i18n";
 import { parseFlorencioFilters, rankFlorencioProducts, type FlorencioFilters } from "@/lib/florencio-recommendations";
 import { askFlorencioAI } from "@/lib/florencio-ai";
+import { playFlorencioAudio } from "@/lib/florencio-voice";
 
 type Tab = "chat" | "recommendations" | "orders" | "account" | "gallery";
 type ChatMessage = { id: string; role: "user" | "florencio"; text: string; createdAt: string };
@@ -182,6 +184,7 @@ function ProductCardMini({
 }
 
 export default function FlorencioCatalogAssistant() {
+  const { lang } = useI18n();
   const { data: products = [] } = useQuery(productsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
@@ -264,12 +267,19 @@ export default function FlorencioCatalogAssistant() {
 
   useEffect(() => {
     if (!messages.length) {
-      setMessages([
-        { id: "welcome-1", role: "florencio", text: "Hola. Soy Florencio, tu asistente floral de Deluxury.", createdAt: new Date().toISOString() },
-        { id: "welcome-2", role: "florencio", text: "Cuéntame qué necesitas y te ayudaré sin inventar información ni forzar una compra.", createdAt: new Date().toISOString() },
-      ]);
+      setMessages(
+        lang === "en"
+          ? [
+              { id: "welcome-1", role: "florencio", text: "Hi. I'm Florencio, Deluxury's floral assistant.", createdAt: new Date().toISOString() },
+              { id: "welcome-2", role: "florencio", text: "Tell me what you need and I'll help without inventing information or forcing a purchase.", createdAt: new Date().toISOString() },
+            ]
+          : [
+              { id: "welcome-1", role: "florencio", text: "Hola. Soy Florencio, tu asistente floral de Deluxury.", createdAt: new Date().toISOString() },
+              { id: "welcome-2", role: "florencio", text: "Cuéntame qué necesitas y te ayudaré sin inventar información ni forzar una compra.", createdAt: new Date().toISOString() },
+            ],
+      );
     }
-  }, [messages.length]);
+  }, [messages.length, lang]);
 
   useEffect(() => {
     if (activeTab === "chat" && chatRef.current) {
@@ -363,6 +373,7 @@ export default function FlorencioCatalogAssistant() {
         message: text,
         history: messages.slice(-8).map((m) => ({ role: m.role, text: m.text })),
         currentFilters: filters,
+        language: lang,
       });
 
       // Nunca dejamos que el marcador de recomendación sobreviva a una conversación,
@@ -400,9 +411,21 @@ export default function FlorencioCatalogAssistant() {
       // Si el backend pidió recomendar pero el catálogo no tiene coincidencias,
       // no mostramos productos de relleno y decimos la verdad.
       if (result.intent === "recommendation" && nextRecs.length === 0) {
-        reply = merged.budgetMax
-          ? `Revisé el catálogo actual y no encontré un arreglo que cumpla tu presupuesto de $${merged.budgetMax.toLocaleString("es-CO")}. Prefiero decírtelo antes que ofrecerte algo más caro.`
-          : "Revisé el catálogo actual y no encontré una coincidencia suficiente con lo que buscas. Prefiero decírtelo antes que recomendarte algo que no encaja.";
+        reply =
+          lang === "en"
+            ? merged.budgetMax
+              ? `I checked the current catalog and couldn't find an arrangement within your $${merged.budgetMax.toLocaleString("en-US")} budget. I'd rather tell you than offer something more expensive.`
+              : "I checked the current catalog and couldn't find a good enough match for what you're looking for. I'd rather tell you than recommend something that doesn't fit."
+            : merged.budgetMax
+              ? `Revisé el catálogo actual y no encontré un arreglo que cumpla tu presupuesto de $${merged.budgetMax.toLocaleString("es-CO")}. Prefiero decírtelo antes que ofrecerte algo más caro.`
+              : "Revisé el catálogo actual y no encontré una coincidencia suficiente con lo que buscas. Prefiero decírtelo antes que recomendarte algo que no encaja.";
+      }
+
+      // Florencio habla según su intención y en el idioma elegido en la intro.
+      if (result.intent === "recommendation") {
+        void playFlorencioAudio(nextRecs.length > 0 ? "recommend" : "budget", lang);
+      } else if (result.intent === "discovery") {
+        void playFlorencioAudio("ask", lang);
       }
 
       const assistant: ChatMessage = {
@@ -455,13 +478,29 @@ export default function FlorencioCatalogAssistant() {
   const addProduct = (product: Product) => {
     add(product);
     window.dispatchEvent(new CustomEvent("florencio:product-selected", { detail: { name: product.name } }));
+    void playFlorencioAudio("added", lang);
     const msg: ChatMessage = {
       id: uid(),
       role: "florencio",
-      text: `Listo. Añadí ${product.name} a tu carrito.`,
+      text: lang === "en" ? `Done. I added ${product.name} to your cart.` : `Listo. Añadí ${product.name} a tu carrito.`,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, msg]);
+  };
+
+  const clearChat = () => {
+    setMessages(
+      lang === "en"
+        ? [
+            { id: uid(), role: "florencio", text: "New conversation. How can I help?", createdAt: new Date().toISOString() },
+          ]
+        : [
+            { id: uid(), role: "florencio", text: "Nueva conversación. ¿En qué puedo ayudarte?", createdAt: new Date().toISOString() },
+          ],
+    );
+    setFilters({ keywords: [] });
+    setRecommendations([]);
+    setSessionId(null);
   };
 
   const tabs: Array<{ id: Tab; label: string; icon: typeof MessageCircle; private?: boolean }> = [
@@ -548,6 +587,17 @@ export default function FlorencioCatalogAssistant() {
             </div>
             <div className="flex items-center gap-2">
               <div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Vista previa"}</div>
+              {activeTab === "chat" && session && messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearChat}
+                  aria-label={lang === "en" ? "Clear conversation" : "Vaciar conversación"}
+                  title={lang === "en" ? "Clear conversation" : "Vaciar conversación"}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              )}
               {isCatalogPage && <button type="button" onClick={() => setCatalogChatOpen(false)} aria-label="Cerrar chat desplegable" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>}
             </div>
           </header>
