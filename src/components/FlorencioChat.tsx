@@ -21,7 +21,7 @@ import {
 import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
 import { useContentTranslator, useI18n, type Lang } from "@/lib/i18n";
-import { playFlorencioVoice } from "@/lib/florencio-voice";
+import { playFlorencioAudio } from "@/lib/florencio-voice";
 import {
   describeFlorencioFilters,
   parseFlorencioFilters,
@@ -273,8 +273,8 @@ export default function FlorencioChat({
       };
 
       setFilters(merged);
-      if (result.intent === "recommendation") playFlorencioVoice("recommend", lang);
-      if (result.intent === "discovery") playFlorencioVoice("ask", lang);
+      if (result.intent === "recommendation") playFlorencioAudio("recommend", lang);
+      if (result.intent === "discovery") playFlorencioAudio("ask", lang);
       setMessages((prev) => [
         ...prev,
         { id: nextId.current++, role: "florencio", text: result.reply },
@@ -330,7 +330,7 @@ export default function FlorencioChat({
 
   const addRecommended = (product: Product) => {
     add(product);
-    playFlorencioVoice("added", lang);
+    playFlorencioAudio("added", lang);
 
     window.dispatchEvent(
       new CustomEvent("florencio:product-selected", {
