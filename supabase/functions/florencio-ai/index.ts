@@ -6,230 +6,241 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Lang = "es" | "en";
 type Intent = "conversation" | "information" | "discovery" | "recommendation";
-type Filters = { recipient?: string | null; occasion?: string | null; style?: string | null; color?: string | null; budgetMax?: number | null; keywords: string[] };
-type KnowledgeRow = { key: string; value: string; is_active?: boolean };
+type Filters = {
+  recipient?: string;
+  occasion?: string;
+  style?: string;
+  color?: string;
+  budgetMax?: number;
+  keywords: string[];
+};
+type KnowledgeRow = { key: string; value: string };
 
-const OPENAI_MODEL = "gpt-5-mini";
 const RECOMMENDATION_MARKER = "__florencio_recommendation__";
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+const SYSTEM = `Eres Florencio, el asistente virtual de Deluxury Floristería.
+
+IDENTIDAD Y TONO
+- Hablas siempre en español.
+- Eres cálido, elegante, natural y sincero.
+- No eres un vendedor agresivo.
+- Respondes de forma breve, humana y útil.
+- Puedes conversar, explicar Deluxury y ayudar a encontrar productos reales.
+
+REGLA CENTRAL
+Tu prioridad es ayudar al cliente, no forzar una venta.
+
+INTENCIONES
+1. conversation: saludos, despedidas, agradecimientos, preguntas sobre ti o conversación casual. NO actives recomendaciones.
+2. information: preguntas sobre Deluxury, la floristería, la página, compras, domicilios, cuenta, pedidos, categorías, servicios u otra información de negocio. Usa únicamente la información oficial proporcionada.
+3. discovery: el cliente quiere comprar o regalar algo, pero faltan datos importantes. Haz UNA pregunta corta. No muestres productos todavía.
+4. recommendation: usa esta intención cuando ya haya suficiente información para buscar. La aplicación buscará los productos reales.
+
+REGLAS DE SINCERIDAD
+- Nunca inventes productos, precios, stock, disponibilidad, descuentos, políticas, horarios, direcciones, tiempos de entrega ni servicios.
+- Si hay un presupuesto máximo, respétalo estrictamente.
+- No sugieras automáticamente algo más caro cuando no existe una coincidencia.
+- Conserva información útil que el cliente ya haya dado.
+- No hagas un interrogatorio.
+
+SALIDA
+Devuelve JSON válido y nada más:
+{
+  "intent": "conversation|information|discovery|recommendation",
+  "reply": "respuesta breve para el cliente",
+  "filters": {
+    "recipient": "pareja|mama|papa|amiga|amigo|familia|otro o null",
+    "occasion": "cumpleanos|aniversario|amor|dia_de_la_madre|dia_del_padre|graduacion|boda|condolencias|otro o null",
+    "style": "romantico|elegante|minimalista|lujoso|alegre|clasico|otro o null",
+    "color": "rojo|rosado|blanco|amarillo|azul|morado|mixto|otro o null",
+    "budgetMax": number o null,
+    "keywords": ["palabras", "clave"]
+  },
+  "keywords": ["palabras", "clave"]
+}
+budgetMax siempre es un número en COP. Convierte 200 mil, 200k o doscientos mil en 200000. Usa null cuando no conozcas un dato. No generes listas de productos.`;
+
+function cleanJson(text: string) {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return fenced?.[1]?.trim() ?? text.trim();
 }
 
-function extractResponseText(data: unknown): string {
-  if (!data || typeof data !== "object") return "";
-  const root = data as Record<string, unknown>;
-  if (typeof root.output_text === "string" && root.output_text.trim()) return root.output_text.trim();
-  const output = Array.isArray(root.output) ? root.output : [];
+function normalizeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeFilters(raw: unknown, previous: Filters): Filters {
+  const f = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const num = Number(f.budgetMax);
+  const keywords = [
+    ...(Array.isArray(previous.keywords) ? previous.keywords : []),
+    ...(Array.isArray(f.keywords) ? f.keywords : []),
+  ]
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim().toLowerCase())
+    .filter(Boolean);
+
+  return {
+    recipient: normalizeString(f.recipient) ?? previous.recipient,
+    occasion: normalizeString(f.occasion) ?? previous.occasion,
+    style: normalizeString(f.style) ?? previous.style,
+    color: normalizeString(f.color) ?? previous.color,
+    budgetMax: Number.isFinite(num) && num > 0 ? num : previous.budgetMax,
+    keywords: Array.from(new Set(keywords)).slice(0, 20),
+  };
+}
+
+function normalizePrevious(raw: unknown): Filters {
+  const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const budget = Number(value.budgetMax);
+  return {
+    recipient: normalizeString(value.recipient),
+    occasion: normalizeString(value.occasion),
+    style: normalizeString(value.style),
+    color: normalizeString(value.color),
+    budgetMax: Number.isFinite(budget) && budget > 0 ? budget : undefined,
+    keywords: Array.isArray(value.keywords)
+      ? value.keywords.filter((x): x is string => typeof x === "string").map((x) => x.trim().toLowerCase()).filter(Boolean).slice(0, 20)
+      : [],
+  };
+}
+
+function extractResponseText(root: unknown): string {
+  if (!root || typeof root !== "object") return "";
+  const response = root as Record<string, unknown>;
+  if (typeof response.output_text === "string" && response.output_text.trim()) return response.output_text.trim();
+
+  const output = response.output;
+  if (!Array.isArray(output)) return "";
+
   const chunks: string[] = [];
   for (const item of output) {
     if (!item || typeof item !== "object") continue;
-    const content = Array.isArray((item as Record<string, unknown>).content) ? (item as Record<string, unknown>).content as unknown[] : [];
+    const record = item as Record<string, unknown>;
+    const content = record.content;
+    if (!Array.isArray(content)) continue;
     for (const part of content) {
       if (!part || typeof part !== "object") continue;
-      const text = (part as Record<string, unknown>).text;
-      if (typeof text === "string") chunks.push(text);
+      const partRecord = part as Record<string, unknown>;
+      if (partRecord.type === "output_text" && typeof partRecord.text === "string") chunks.push(partRecord.text);
     }
   }
   return chunks.join("\n").trim();
 }
 
-function cleanJson(raw: string) {
-  return raw.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
-}
-
-async function fetchTable(path: string): Promise<Record<string, unknown>[]> {
-  if (!SUPABASE_URL || !SERVICE_ROLE) return [];
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` },
+async function loadKnowledge(): Promise<KnowledgeRow[]> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) return [];
+  const response = await fetch(`${url}/rest/v1/florencio_knowledge?select=key,value&order=key.asc`, {
+    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
   });
   if (!response.ok) return [];
   const data = await response.json();
-  return Array.isArray(data) ? data as Record<string, unknown>[] : [];
+  return Array.isArray(data)
+    ? data.filter((row): row is KnowledgeRow => !!row && typeof row.key === "string" && typeof row.value === "string")
+    : [];
 }
 
-async function loadKnowledge() {
-  const [knowledge, settings] = await Promise.all([
-    fetchTable("florencio_knowledge?select=key,value,is_active&is_active=eq.true"),
-    fetchTable("settings?select=key,value"),
-  ]);
-  const lines = [
-    ...knowledge.map((row) => `${String(row.key)}: ${String(row.value)}`),
-    ...settings.map((row) => `${String(row.key)}: ${String(row.value)}`),
-  ];
-  return Array.from(new Set(lines)).slice(0, 80).join("\n");
+function knowledgeText(rows: KnowledgeRow[]) {
+  if (!rows.length) return "No hay información oficial adicional disponible. Si el cliente pregunta algo que no conoces, dilo claramente.";
+  return rows.map((row) => `${row.key}: ${row.value}`).join("\n");
 }
 
-function promptFor(language: Lang, knowledge: string) {
-  const languageName = language === "en" ? "English" : "Spanish";
-  return `You are Florencio, the virtual floral assistant of Deluxury Floristería in Barranquilla, Colombia.
-
-LANGUAGE
-- Reply only in ${languageName}.
-- Keep replies natural, warm, elegant and concise.
-
-CORE BEHAVIOR
-- Your job is to understand the customer before recommending products.
-- Never behave like an aggressive salesperson.
-- Ask at most one useful question per turn during discovery.
-- Preserve facts the customer already supplied.
-
-INTENTS
-- conversation: greetings, thanks, who you are, casual chat. Do not recommend products.
-- information: questions about Deluxury, services, website, delivery, account, orders or policies. Use official context only.
-- discovery: the customer wants a gift or flowers but important details are missing. Ask one short question. Do not recommend products yet.
-- recommendation: enough intent exists to search the real catalog. The app will perform the catalog ranking.
-
-RECOMMENDATION GATE
-Use recommendation only when there is a clear need and enough context to make a meaningful search. A greeting alone is never enough.
-
-BUDGET
-- budgetMax is a hard ceiling.
-- Never reinterpret a customer's maximum upward.
-- Never claim an over-budget product fits.
-- Never automatically upsell when nothing fits.
-- If no product fits, the client-facing app will say so honestly.
-
-FACTUALITY
-- Do not invent products, prices, stock, delivery times, address, phone, hours, discounts or policies.
-- For business facts, use only OFFICIAL CONTEXT below.
-
-OFFICIAL CONTEXT
-${knowledge || "No additional official context is currently available. If a fact is missing, say you do not have it."}
-
-OUTPUT
-Return only the structured JSON requested by the response schema.\n`;
-}
-
-function safeNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  if (!OPENAI_API_KEY) return json({ error: "OPENAI_API_KEY is not configured" }, 500);
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const language: Lang = body?.language === "en" ? "en" : "es";
-    const message = typeof body?.message === "string" ? body.message.trim() : "";
-    const history = Array.isArray(body?.history) ? body.history.slice(-8) : [];
-    const currentFilters = (body?.currentFilters && typeof body.currentFilters === "object") ? body.currentFilters : { keywords: [] };
-    if (!message) return json({ error: "message is required" }, 400);
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    const model = Deno.env.get("FLORENCIO_MODEL") || "gpt-5-mini";
+    if (!apiKey) throw new Error("Falta configurar OPENAI_API_KEY");
 
+    const body = await req.json();
+    const message = String(body?.message ?? "").trim();
+    if (!message) throw new Error("Mensaje vacío");
+
+    const previous = normalizePrevious(body?.currentFilters);
+    const history = Array.isArray(body?.history) ? body.history.slice(-8) : [];
+    const conversation = history
+      .map((m: Record<string, unknown>) => `${m.role === "user" ? "Cliente" : "Florencio"}: ${String(m.text ?? "").slice(0, 500)}`)
+      .join("\n");
     const knowledge = await loadKnowledge();
-    const buildPayload = (maxOutputTokens: number) => ({
-      model: OPENAI_MODEL,
-      input: [
-        { role: "system", content: [{ type: "input_text", text: promptFor(language, knowledge) }] },
-        ...history.map((item: Record<string, unknown>) => ({
-          role: item.role === "florencio" ? "assistant" : "user",
-          content: [{ type: "input_text", text: String(item.text ?? "") }],
-        })),
-        { role: "user", content: [{ type: "input_text", text: `CURRENT FILTERS: ${JSON.stringify(currentFilters)}\nCUSTOMER MESSAGE: ${message}` }] },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "florencio_response",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              intent: { type: "string", enum: ["conversation", "information", "discovery", "recommendation"] },
-              reply: { type: "string" },
-              filters: {
-                type: "object",
-                properties: {
-                  recipient: { type: ["string", "null"] },
-                  occasion: { type: ["string", "null"] },
-                  style: { type: ["string", "null"] },
-                  color: { type: ["string", "null"] },
-                  budgetMax: { type: ["number", "null"] },
-                  keywords: { type: "array", items: { type: "string" } },
-                },
-                required: ["recipient", "occasion", "style", "color", "budgetMax", "keywords"],
-                additionalProperties: false,
-              },
-              keywords: { type: "array", items: { type: "string" } },
-            },
-            required: ["intent", "reply", "filters", "keywords"],
-            additionalProperties: false,
-          },
-        },
+
+    const userPrompt = `INFORMACIÓN OFICIAL DE DELUXURY:\n${knowledgeText(knowledge)}\n\nFILTROS ACTUALES:\n${JSON.stringify(previous)}\n\nCONVERSACIÓN RECIENTE:\n${conversation || "(sin conversación previa)"}\n\nNUEVO MENSAJE DEL CLIENTE:\n${message}\n\nClasifica correctamente la intención. Un saludo es conversation, una pregunta sobre Deluxury es information, una necesidad incompleta es discovery y solamente una solicitud suficientemente definida debe ser recommendation.`;
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
-      // gpt-5-mini a veces gasta todo max_output_tokens "razonando" internamente
-      // y nunca llega a emitir el mensaje final (bug conocido de la Responses API:
-      // https://community.openai.com/t/gpt-5-mini-models-return-empty-output-text-in-the-responses-api/1343239).
-      // Bajar el esfuerzo de razonamiento y dar más margen de tokens evita que la respuesta quede vacía.
-      reasoning: { effort: "minimal" },
-      max_output_tokens: maxOutputTokens,
+      body: JSON.stringify({
+        model,
+        input: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content: userPrompt },
+        ],
+        text: { format: { type: "json_object" } },
+        reasoning: { effort: "minimal" },
+        max_output_tokens: 1000,
+      }),
     });
 
-    const callOpenAI = async (maxOutputTokens: number) => {
-      const response = await fetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload(maxOutputTokens)),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        console.error("Florencio: OpenAI error", { status: response.status, body: data });
-        throw new Error(`OpenAI request failed with status ${response.status}`);
-      }
-      return { data, text: extractResponseText(data) };
-    };
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`OpenAI ${response.status}: ${detail.slice(0, 600)}`);
+    }
 
-    let { data, text: responseText } = await callOpenAI(1200);
-
-    // Red de seguridad: si vino vacía (el modelo se quedó "pensando" y no alcanzó
-    // a escribir), reintentamos una vez con más margen de tokens antes de rendirnos.
+    const data = await response.json();
+    const responseText = extractResponseText(data);
     if (!responseText) {
-      console.error("Florencio: OpenAI returned no text, retrying with more tokens", {
-        responseId: (data as Record<string, unknown>)?.id ?? null,
-        status: (data as Record<string, unknown>)?.status ?? null,
-      });
-      ({ data, text: responseText } = await callOpenAI(2200));
+      const incompleteReason = typeof data?.incomplete_details?.reason === "string" ? data.incomplete_details.reason : "unknown";
+      throw new Error(`OpenAI no devolvió texto utilizable (${incompleteReason}).`);
     }
 
-    if (!responseText) {
-      console.error("Florencio: OpenAI returned no text after retry", { responseId: (data as Record<string, unknown>)?.id ?? null, status: (data as Record<string, unknown>)?.status ?? null });
-      throw new Error("OpenAI no devolvió contenido de texto");
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(cleanJson(responseText)) as Record<string, unknown>;
+    } catch {
+      throw new Error("OpenAI devolvió una respuesta que no pudo interpretarse como JSON.");
     }
 
-    const parsed = JSON.parse(cleanJson(responseText)) as Record<string, unknown>;
-    const filters = (parsed.filters && typeof parsed.filters === "object" ? parsed.filters : {}) as Record<string, unknown>;
-    const intent = parsed.intent;
-    const reply = typeof parsed.reply === "string" ? parsed.reply.trim() : "";
-    if (!reply || !["conversation", "information", "discovery", "recommendation"].includes(String(intent))) {
-      throw new Error("Respuesta estructurada inválida");
-    }
+    const validIntents = new Set<Intent>(["conversation", "information", "discovery", "recommendation"]);
+    const intent: Intent = validIntents.has(parsed.intent as Intent) ? (parsed.intent as Intent) : "conversation";
+    const filters = normalizeFilters(parsed.filters, previous);
+    const rawKeywords = [
+      ...filters.keywords,
+      ...(Array.isArray(parsed.keywords) ? parsed.keywords : []),
+    ]
+      .filter((x): x is string => typeof x === "string")
+      .map((x) => x.trim().toLowerCase())
+      .filter(Boolean)
+      .filter((x) => x !== RECOMMENDATION_MARKER);
 
-    const outputIntent = intent as Intent;
-    const keywords = Array.isArray(parsed.keywords) ? parsed.keywords.filter((x): x is string => typeof x === "string").slice(0, 16) : [];
-    const filterKeywords = Array.isArray(filters.keywords) ? filters.keywords.filter((x): x is string => typeof x === "string").slice(0, 16) : [];
+    const keywords = Array.from(new Set([
+      ...rawKeywords,
+      ...(intent === "recommendation" ? [RECOMMENDATION_MARKER] : []),
+    ])).slice(0, 21);
 
-    return json({
-      intent: outputIntent,
-      reply,
-      filters: {
-        recipient: typeof filters.recipient === "string" ? filters.recipient : null,
-        occasion: typeof filters.occasion === "string" ? filters.occasion : null,
-        style: typeof filters.style === "string" ? filters.style : null,
-        color: typeof filters.color === "string" ? filters.color : null,
-        budgetMax: safeNumber(filters.budgetMax),
-        keywords: filterKeywords,
-      },
-      keywords: Array.from(new Set([...keywords, ...(outputIntent === "recommendation" ? [RECOMMENDATION_MARKER] : [])])).slice(0, 17),
+    return new Response(JSON.stringify({
+      intent,
+      reply: String(parsed.reply ?? "Cuéntame un poco más y te ayudo.").slice(0, 500),
+      filters: { ...filters, keywords },
+      keywords,
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Florencio edge function error:", error);
-    return json({ error: "Florencio could not complete the request" }, 500);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Error inesperado" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
