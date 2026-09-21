@@ -266,22 +266,6 @@ export default function FlorencioCatalogAssistant() {
   }, [session?.user.id]);
 
   useEffect(() => {
-    if (!messages.length) {
-      setMessages(
-        lang === "en"
-          ? [
-              { id: "welcome-1", role: "florencio", text: "Hi. I'm Florencio, Deluxury's floral assistant.", createdAt: new Date().toISOString() },
-              { id: "welcome-2", role: "florencio", text: "Tell me what you need and I'll help without inventing information or forcing a purchase.", createdAt: new Date().toISOString() },
-            ]
-          : [
-              { id: "welcome-1", role: "florencio", text: "Hola. Soy Florencio, tu asistente floral de Deluxury.", createdAt: new Date().toISOString() },
-              { id: "welcome-2", role: "florencio", text: "Cuéntame qué necesitas y te ayudaré sin inventar información ni forzar una compra.", createdAt: new Date().toISOString() },
-            ],
-      );
-    }
-  }, [messages.length, lang]);
-
-  useEffect(() => {
     if (activeTab === "chat" && chatRef.current) {
       chatRef.current.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
     }
@@ -606,10 +590,12 @@ export default function FlorencioCatalogAssistant() {
             <div className="flex min-h-0 flex-1 flex-col">
               <div ref={chatRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-7 sm:py-7">
                 <div className="mx-auto w-full max-w-4xl">
-                  <div className="mb-6 grid gap-4 rounded-[26px] border border-primary/15 bg-gradient-to-br from-[#fffaf2] to-white p-5 sm:grid-cols-[auto_1fr] sm:items-center sm:p-6">
-                    <div className="relative mx-auto sm:mx-0"><span className="absolute -inset-3 rounded-full border border-primary/10 animate-pulse" /><Avatar src={profileImage} size="lg" /></div>
-                    <div><p className="text-[9px] tracking-[.2em] text-primary uppercase">Florencio IA</p><h2 className="mt-2 font-display text-3xl leading-tight sm:text-4xl">Hola, soy Florencio.</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Estoy aquí para ayudarte a elegir un detalle con intención. Habla conmigo de forma natural; yo conecto tu idea con el catálogo real de Deluxury.</p></div>
-                  </div>
+                  {messages.length === 0 && (
+                    <div className="flex flex-col items-center py-10 text-center sm:py-14">
+                      <div className="relative"><span className="absolute -inset-3 rounded-full border border-primary/10 animate-pulse" /><Avatar src={profileImage} size="lg" /></div>
+                      <p className="mt-5 text-[9px] tracking-[.2em] text-primary uppercase">Florencio IA</p>
+                    </div>
+                  )}
 
                   {!session && <button type="button" onClick={() => selectTab("account")} className="mb-6 w-full rounded-2xl border border-primary/15 bg-primary/[.04] p-4 text-left text-sm leading-relaxed hover:bg-primary/[.06]"><strong>Inicia sesión para hablar con Florencio.</strong> Así también guardarás tus conversaciones, recomendaciones y pedidos.</button>}
 
