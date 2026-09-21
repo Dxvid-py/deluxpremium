@@ -1,0 +1,49 @@
+AUDIOS DE FLORENCIO — DELUXURY
+
+CARPETA:
+public/audio/florencio/
+
+1) florencio-greeting.es.mp3
+Hola, soy Florencio. Bienvenido a Deluxury.
+
+2) florencio-greeting.en.mp3
+Hi, I'm Florencio. Welcome to Deluxury.
+
+3) florencio-looking.es.mp3
+¿Buscas un detalle especial?
+
+4) florencio-looking.en.mp3
+Looking for something special?
+
+5) florencio-ask.es.mp3
+Cuéntame qué ocasión tienes en mente.
+
+6) florencio-ask.en.mp3
+Tell me what occasion you have in mind.
+
+7) florencio-choice.es.mp3
+Muy buena elección.
+
+8) florencio-choice.en.mp3
+A beautiful choice.
+
+9) florencio-added.es.mp3
+Listo. Lo añadí a tu carrito.
+
+10) florencio-added.en.mp3
+Done. I added it to your cart.
+
+11) florencio-recommend.es.mp3
+Tengo algunas opciones que encajan contigo.
+
+12) florencio-recommend.en.mp3
+I have a few options that fit what you're looking for.
+
+13) florencio-budget.es.mp3
+No encontré una opción que cumpla tu presupuesto.
+
+14) florencio-budget.en.mp3
+I couldn't find an option that fits your budget.
+
+INTRO:
+public/audio/intro-deluxe.mp3

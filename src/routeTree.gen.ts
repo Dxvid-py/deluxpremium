@@ -14,9 +14,11 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ContactoRouteImport } from './routes/contacto'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CuentaRouteImport } from './routes/cuenta'
 import { Route as FlorencioRouteImport } from './routes/florencio'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
+import { Route as PrivacidadRouteImport } from './routes/privacidad'
 import { Route as ColeccionSlugRouteImport } from './routes/coleccion.$slug'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
 
@@ -45,6 +47,11 @@ const ContactoRoute = ContactoRouteImport.update({
   path: '/contacto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CuentaRoute = CuentaRouteImport.update({
   id: '/cuenta',
   path: '/cuenta',
@@ -58,6 +65,11 @@ const FlorencioRoute = FlorencioRouteImport.update({
 const NosotrosRoute = NosotrosRouteImport.update({
   id: '/nosotros',
   path: '/nosotros',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadRoute = PrivacidadRouteImport.update({
+  id: '/privacidad',
+  path: '/privacidad',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ColeccionSlugRoute = ColeccionSlugRouteImport.update({
@@ -77,9 +89,11 @@ export interface FileRoutesByFullPath {
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
   '/contacto': typeof ContactoRoute
+  '/cookies': typeof CookiesRoute
   '/cuenta': typeof CuentaRoute
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
+  '/privacidad': typeof PrivacidadRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -89,9 +103,11 @@ export interface FileRoutesByTo {
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
   '/contacto': typeof ContactoRoute
+  '/cookies': typeof CookiesRoute
   '/cuenta': typeof CuentaRoute
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
+  '/privacidad': typeof PrivacidadRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -102,9 +118,11 @@ export interface FileRoutesById {
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
   '/contacto': typeof ContactoRoute
+  '/cookies': typeof CookiesRoute
   '/cuenta': typeof CuentaRoute
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
+  '/privacidad': typeof PrivacidadRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -116,9 +134,11 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/checkout'
     | '/contacto'
+    | '/cookies'
     | '/cuenta'
     | '/florencio'
     | '/nosotros'
+    | '/privacidad'
     | '/coleccion/$slug'
     | '/producto/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -128,9 +148,11 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/checkout'
     | '/contacto'
+    | '/cookies'
     | '/cuenta'
     | '/florencio'
     | '/nosotros'
+    | '/privacidad'
     | '/coleccion/$slug'
     | '/producto/$slug'
   id:
@@ -140,9 +162,11 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/checkout'
     | '/contacto'
+    | '/cookies'
     | '/cuenta'
     | '/florencio'
     | '/nosotros'
+    | '/privacidad'
     | '/coleccion/$slug'
     | '/producto/$slug'
   fileRoutesById: FileRoutesById
@@ -153,9 +177,11 @@ export interface RootRouteChildren {
   CatalogoRoute: typeof CatalogoRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactoRoute: typeof ContactoRoute
+  CookiesRoute: typeof CookiesRoute
   CuentaRoute: typeof CuentaRoute
   FlorencioRoute: typeof FlorencioRoute
   NosotrosRoute: typeof NosotrosRoute
+  PrivacidadRoute: typeof PrivacidadRoute
   ColeccionSlugRoute: typeof ColeccionSlugRoute
   ProductoSlugRoute: typeof ProductoSlugRoute
 }
@@ -197,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cuenta': {
       id: '/cuenta'
       path: '/cuenta'
@@ -216,6 +249,13 @@ declare module '@tanstack/react-router' {
       path: '/nosotros'
       fullPath: '/nosotros'
       preLoaderRoute: typeof NosotrosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidad': {
+      id: '/privacidad'
+      path: '/privacidad'
+      fullPath: '/privacidad'
+      preLoaderRoute: typeof PrivacidadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/coleccion/$slug': {
@@ -241,9 +281,11 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogoRoute: CatalogoRoute,
   CheckoutRoute: CheckoutRoute,
   ContactoRoute: ContactoRoute,
+  CookiesRoute: CookiesRoute,
   CuentaRoute: CuentaRoute,
   FlorencioRoute: FlorencioRoute,
   NosotrosRoute: NosotrosRoute,
+  PrivacidadRoute: PrivacidadRoute,
   ColeccionSlugRoute: ColeccionSlugRoute,
   ProductoSlugRoute: ProductoSlugRoute,
 }

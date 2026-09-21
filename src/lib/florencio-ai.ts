@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Lang } from "@/lib/i18n";
 import type { FlorencioFilters } from "@/lib/florencio-recommendations";
 
 export type FlorencioIntent =
@@ -18,18 +19,14 @@ export async function askFlorencioAI(input: {
   message: string;
   history: Array<{ role: "user" | "florencio"; text: string }>;
   currentFilters: FlorencioFilters;
+  language: Lang;
 }): Promise<FlorencioAIResult> {
   const { data, error } = await supabase.functions.invoke("florencio-ai", {
     body: input,
   });
 
-  if (error) {
-    throw new Error(error.message || "No se pudo conectar con Florencio");
-  }
-
-  if (!data || typeof data.reply !== "string") {
-    throw new Error("Respuesta inválida de Florencio");
-  }
+  if (error) throw new Error(error.message || "No se pudo conectar con Florencio");
+  if (!data || typeof data.reply !== "string") throw new Error("Respuesta inválida de Florencio");
 
   const validIntents = new Set<FlorencioIntent>([
     "conversation",
@@ -38,12 +35,8 @@ export async function askFlorencioAI(input: {
     "recommendation",
   ]);
 
-  const intent = validIntents.has(data.intent)
-    ? (data.intent as FlorencioIntent)
-    : "conversation";
-
   return {
-    intent,
+    intent: validIntents.has(data.intent) ? (data.intent as FlorencioIntent) : "conversation",
     reply: data.reply,
     filters: data.filters ?? { keywords: [] },
     keywords: Array.isArray(data.keywords) ? data.keywords : [],
