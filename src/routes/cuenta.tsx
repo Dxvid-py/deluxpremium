@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, LogOut, MapPin, Plus, Star, Trash2 } from "lucide-react";
+import { Loader2, LogOut, MapPin, Plus, Star, Trash2, Volume2, VolumeX, Cookie } from "lucide-react";
 import type { Session } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
 import { settingsQuery, type CustomerAddress, type Order, type Profile } from "@/lib/queries";
 import { useReveal } from "@/hooks/use-reveal";
+import { getFlorencioAudioEnabled, setFlorencioAudioEnabled } from "@/lib/florencio-voice";
 
 export const Route = createFileRoute("/cuenta")({
   head: () => ({
@@ -83,6 +84,7 @@ function Cuenta() {
         </div>
 
         <ProfileCard session={session} />
+        <PreferencesCard />
         <AddressesCard session={session} />
         <OrdersCard session={session} />
       </div>
@@ -264,6 +266,90 @@ function ProfileCard({ session }: { session: Session }) {
       >
         {t("cta.save")}
       </button>
+    </Section>
+  );
+}
+
+function PreferencesCard() {
+  const { lang } = useI18n();
+  const [soundEnabled, setSoundEnabled] = useState(getFlorencioAudioEnabled());
+
+  useEffect(() => {
+    const onAudioChanged = (event: Event) => {
+      const enabled = Boolean((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled);
+      setSoundEnabled(enabled);
+    };
+    window.addEventListener("deluxury:audio-changed", onAudioChanged);
+    return () => window.removeEventListener("deluxury:audio-changed", onAudioChanged);
+  }, []);
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setFlorencioAudioEnabled(next);
+    setSoundEnabled(next);
+  };
+
+  const openCookieSettings = () => {
+    window.dispatchEvent(new CustomEvent("deluxury:open-cookie-settings"));
+  };
+
+  const t =
+    lang === "en"
+      ? {
+          title: "Preferences",
+          soundTitle: "Site sound",
+          soundBody: "Florencio's voice and the intro music.",
+          soundOn: "On",
+          soundOff: "Off",
+          cookiesTitle: "Cookie preferences",
+          cookiesBody: "Review or change what optional storage is allowed.",
+          cookiesCta: "Manage",
+        }
+      : {
+          title: "Preferencias",
+          soundTitle: "Sonido del sitio",
+          soundBody: "La voz de Florencio y la música de la intro.",
+          soundOn: "Activado",
+          soundOff: "Desactivado",
+          cookiesTitle: "Preferencias de cookies",
+          cookiesBody: "Revisa o cambia qué almacenamiento opcional está permitido.",
+          cookiesCta: "Gestionar",
+        };
+
+  return (
+    <Section title={t.title}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex items-center justify-between gap-4 border border-border/70 p-5">
+          <div>
+            <p className="text-sm font-medium">{t.soundTitle}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t.soundBody}</p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={soundEnabled}
+            className="press inline-flex shrink-0 items-center gap-2 border border-border px-4 py-2.5 text-[10px] tracking-[0.2em] uppercase hover:border-primary"
+          >
+            {soundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            {soundEnabled ? t.soundOn : t.soundOff}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 border border-border/70 p-5">
+          <div>
+            <p className="text-sm font-medium">{t.cookiesTitle}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t.cookiesBody}</p>
+          </div>
+          <button
+            type="button"
+            onClick={openCookieSettings}
+            className="press inline-flex shrink-0 items-center gap-2 border border-border px-4 py-2.5 text-[10px] tracking-[0.2em] uppercase hover:border-primary"
+          >
+            <Cookie className="h-3.5 w-3.5" />
+            {t.cookiesCta}
+          </button>
+        </div>
+      </div>
     </Section>
   );
 }

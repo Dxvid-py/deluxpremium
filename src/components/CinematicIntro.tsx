@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import PetalCanvas from "./PetalCanvas";
 import { useI18n, type Lang } from "@/lib/i18n";
@@ -134,28 +133,10 @@ export default function CinematicIntro() {
     }, 500);
   };
 
-  const toggleSound = () => {
-    const next = !audioEnabled;
-    setFlorencioAudioEnabled(next);
-    setAudioEnabled(next);
-
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (next) {
-      audio.muted = false;
-      audio.volume = 0.6;
-      void audio.play().catch(() => undefined);
-    } else {
-      audio.muted = true;
-      audio.pause();
-    }
-  };
-
   return (
     <>
       {enabled && (
-        <audio ref={audioRef} src={audioSrc} preload="auto" playsInline loop />
+        <audio ref={audioRef} src={audioSrc} preload="auto" playsInline />
       )}
 
       {languageGate && (
@@ -266,18 +247,6 @@ export default function CinematicIntro() {
               {t("intro.tagline")}
             </p>
           </div>
-
-          {enabled && (
-            <button
-              type="button"
-              onClick={toggleSound}
-              aria-label={t("cta.sound")}
-              className="press absolute bottom-5 left-5 inline-flex items-center gap-2 rounded-full border border-border bg-background/90 px-3.5 py-2.5 text-[10px] tracking-[.18em] text-muted-foreground uppercase shadow-sm backdrop-blur-md hover:text-primary sm:bottom-6 sm:left-6"
-            >
-              {audioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              {audioEnabled ? "Sonido" : "Silenciado"}
-            </button>
-          )}
 
           <button
             type="button"

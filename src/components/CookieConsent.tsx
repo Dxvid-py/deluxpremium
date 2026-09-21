@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Cookie, Settings2, X } from "lucide-react";
+import { Cookie, X } from "lucide-react";
 import {
   getPrivacyConsent,
   savePrivacyConsent,
@@ -37,7 +37,8 @@ export default function CookieConsent() {
         marketing: "Marketing",
         always: "Always active",
         off: "Off",
-        accept: "Accept all",
+        accept: "Accept",
+        reject: "Reject",
         necessaryOnly: "Necessary only",
         settings: "Cookie settings",
         save: "Save choices",
@@ -54,7 +55,8 @@ export default function CookieConsent() {
         marketing: "Marketing",
         always: "Siempre activas",
         off: "Apagado",
-        accept: "Aceptar todas",
+        accept: "Aceptar",
+        reject: "Rechazar",
         necessaryOnly: "Solo necesarias",
         settings: "Preferencias de cookies",
         save: "Guardar preferencias",
@@ -103,9 +105,8 @@ export default function CookieConsent() {
                   <>
                     <p className="mt-3 max-w-2xl text-xs leading-relaxed text-muted-foreground">{t.body}</p>
                     <div className="mt-5 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => persist(false, false)} className="rounded-full border border-border px-4 py-2.5 text-[10px] tracking-[.14em] uppercase hover:border-primary/50">{t.necessaryOnly}</button>
-                      <button type="button" onClick={() => persist(true, true)} className="rounded-full bg-primary px-4 py-2.5 text-[10px] tracking-[.14em] text-primary-foreground uppercase hover:opacity-90">{t.accept}</button>
-                      <button type="button" onClick={() => setPanelOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-[10px] tracking-[.14em] uppercase hover:border-primary/50"><Settings2 className="h-3.5 w-3.5" />{t.settings}</button>
+                      <button type="button" onClick={() => persist(false, false)} className="rounded-full border border-border px-5 py-2.5 text-[10px] tracking-[.14em] uppercase hover:border-primary/50">{t.reject}</button>
+                      <button type="button" onClick={() => persist(true, true)} className="rounded-full bg-primary px-5 py-2.5 text-[10px] tracking-[.14em] text-primary-foreground uppercase hover:opacity-90">{t.accept}</button>
                     </div>
                   </>
                 ) : (
@@ -145,11 +146,6 @@ export default function CookieConsent() {
             </div>
           </div>
         </div>
-      )}
-      {consent && !panelOpen && (
-        <button type="button" onClick={() => setPanelOpen(true)} className="fixed bottom-3 left-3 z-[105] hidden rounded-full border border-primary/15 bg-white/90 px-3 py-2 text-[9px] tracking-[.12em] text-muted-foreground uppercase shadow-sm backdrop-blur-md sm:inline-flex">
-          {t.settings}
-        </button>
       )}
     </>
   );

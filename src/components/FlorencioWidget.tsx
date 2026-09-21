@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, Volume2, VolumeX, X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { useLocation } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
-import { getFlorencioAudioEnabled, playFlorencioAudio, setFlorencioAudioEnabled } from "@/lib/florencio-voice";
+import { getFlorencioAudioEnabled, playFlorencioAudio } from "@/lib/florencio-voice";
 
 const SALUDANDO_VIDEO = "/video/florencio-saludando.webm";
 const RAMO_VIDEO = "/video/florencio-con-ramo.webm";
@@ -134,24 +134,8 @@ export default function FlorencioWidget() {
     return () => window.removeEventListener("florencio:product-selected", onProductSelected);
   }, [lang, pathname, show]);
 
-  const audioControl = (
-    <button
-      type="button"
-      onClick={() => {
-        const next = !audioEnabled;
-        setFlorencioAudioEnabled(next);
-        setAudioEnabled(next);
-      }}
-      aria-label={audioEnabled ? "Silenciar sonido" : "Activar sonido"}
-      title={audioEnabled ? "Silenciar sonido" : "Activar sonido"}
-      className="fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-4 z-[65] flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 text-muted-foreground shadow-lg backdrop-blur-md transition hover:border-primary hover:text-primary"
-    >
-      {audioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-    </button>
-  );
-
-  if (pathname === "/florencio") return audioControl;
-  if (!mode) return audioControl;
+  if (pathname === "/florencio") return null;
+  if (!mode) return null;
 
   const videoSrc = mode === "product" ? RAMO_VIDEO : SALUDANDO_VIDEO;
 

@@ -554,7 +554,7 @@ export default function FlorencioCatalogAssistant() {
   return (
     <section className="relative overflow-hidden rounded-[30px] border border-primary/15 bg-white/85 shadow-[0_38px_110px_-60px_rgba(62,37,20,.5)] backdrop-blur-xl">
       <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(138,101,59,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(138,101,59,.035)_1px,transparent_1px)] [background-size:42px_42px]" />
-      <div className="relative min-h-[780px] lg:grid lg:grid-cols-[228px_minmax(0,1fr)]">
+      <div className="relative h-[min(780px,calc(100dvh-180px))] lg:grid lg:grid-cols-[228px_minmax(0,1fr)]">
         <aside className="hidden border-r border-border/80 bg-[#fcf8f2]/90 p-5 lg:flex lg:flex-col">
           <div className="flex items-center gap-3">
             <Avatar src={profileImage} />
@@ -578,7 +578,7 @@ export default function FlorencioCatalogAssistant() {
           <div className="mt-8 border-t border-border pt-5"><Link to="/cuenta" className="text-xs text-muted-foreground hover:text-primary">Centro de cuenta</Link>{session && <button type="button" onClick={() => void supabase.auth.signOut()} className="mt-5 block text-xs text-muted-foreground hover:text-primary">Cerrar sesión</button>}</div>
         </div>
 
-        <main className="flex min-h-[780px] min-w-0 flex-col">
+        <main className="flex h-full min-w-0 flex-col">
           <header id={isCatalogPage ? "catalog-florencio-chat" : undefined} className="flex shrink-0 items-center justify-between border-b border-border/80 bg-white/75 px-4 py-4 sm:px-6 lg:px-7">
             <div className="flex min-w-0 items-center gap-3">
               <button type="button" onClick={() => setMobileMenu(true)} className="rounded-xl border border-border p-2 lg:hidden" aria-label="Abrir menú"><Menu className="h-5 w-5" /></button>

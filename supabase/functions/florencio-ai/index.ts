@@ -124,7 +124,7 @@ Deno.serve(async (request) => {
     if (!message) return json({ error: "message is required" }, 400);
 
     const knowledge = await loadKnowledge();
-    const payload = {
+    const buildPayload = (maxOutputTokens: number) => ({
       model: OPENAI_MODEL,
       input: [
         { role: "system", content: [{ type: "input_text", text: promptFor(language, knowledge) }] },
@@ -164,24 +164,42 @@ Deno.serve(async (request) => {
           },
         },
       },
-      max_output_tokens: 500,
-    };
-
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      // gpt-5-mini a veces gasta todo max_output_tokens "razonando" internamente
+      // y nunca llega a emitir el mensaje final (bug conocido de la Responses API:
+      // https://community.openai.com/t/gpt-5-mini-models-return-empty-output-text-in-the-responses-api/1343239).
+      // Bajar el esfuerzo de razonamiento y dar más margen de tokens evita que la respuesta quede vacía.
+      reasoning: { effort: "minimal" },
+      max_output_tokens: maxOutputTokens,
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("Florencio: OpenAI error", { status: response.status, body: data });
-      return json({ error: "OpenAI request failed", status: response.status }, 502);
+    const callOpenAI = async (maxOutputTokens: number) => {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload(maxOutputTokens)),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("Florencio: OpenAI error", { status: response.status, body: data });
+        throw new Error(`OpenAI request failed with status ${response.status}`);
+      }
+      return { data, text: extractResponseText(data) };
+    };
+
+    let { data, text: responseText } = await callOpenAI(1200);
+
+    // Red de seguridad: si vino vacía (el modelo se quedó "pensando" y no alcanzó
+    // a escribir), reintentamos una vez con más margen de tokens antes de rendirnos.
+    if (!responseText) {
+      console.error("Florencio: OpenAI returned no text, retrying with more tokens", {
+        responseId: (data as Record<string, unknown>)?.id ?? null,
+        status: (data as Record<string, unknown>)?.status ?? null,
+      });
+      ({ data, text: responseText } = await callOpenAI(2200));
     }
 
-    const responseText = extractResponseText(data);
     if (!responseText) {
-      console.error("Florencio: OpenAI returned no text", { responseId: (data as Record<string, unknown>)?.id ?? null, status: (data as Record<string, unknown>)?.status ?? null });
+      console.error("Florencio: OpenAI returned no text after retry", { responseId: (data as Record<string, unknown>)?.id ?? null, status: (data as Record<string, unknown>)?.status ?? null });
       throw new Error("OpenAI no devolvió contenido de texto");
     }
 
