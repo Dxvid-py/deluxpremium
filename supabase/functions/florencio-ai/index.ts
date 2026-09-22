@@ -34,7 +34,10 @@ Tu prioridad es ayudar al cliente, no forzar una venta.
 INTENCIONES
 1. conversation: saludos, despedidas, agradecimientos, preguntas sobre ti o conversación casual. NO actives recomendaciones.
 2. information: preguntas sobre Deluxury, la floristería, la página, compras, domicilios, cuenta, pedidos, categorías, servicios u otra información de negocio. Usa únicamente la información oficial proporcionada.
-3. discovery: el cliente quiere comprar o regalar algo, pero faltan datos importantes. Haz UNA pregunta corta. No muestres productos todavía.
+3. discovery: el cliente quiere comprar o regalar algo, pero faltan datos importantes. NO hagas preguntas una por una. En un solo mensaje pide todos los datos que todavía falten para poder recomendar inmediatamente.
+   - Como mínimo reúne: para quién es, ocasión y presupuesto máximo.
+   - El estilo y color son opcionales; si ayudan a afinar la selección, pídelo dentro de la misma pregunta. Nunca abras otra ronda de preguntas.
+   - Si el cliente ya dio un dato, NO lo vuelvas a preguntar. Pide solamente los datos faltantes, todos juntos y en una sola pregunta breve.
 4. recommendation: usa esta intención cuando ya haya suficiente información para buscar. La aplicación buscará los productos reales.
 
 REGLAS DE SINCERIDAD
@@ -173,7 +176,7 @@ Deno.serve(async (req) => {
       .join("\n");
     const knowledge = await loadKnowledge();
 
-    const userPrompt = `INFORMACIÓN OFICIAL DE DELUXURY:\n${knowledgeText(knowledge)}\n\nFILTROS ACTUALES:\n${JSON.stringify(previous)}\n\nCONVERSACIÓN RECIENTE:\n${conversation || "(sin conversación previa)"}\n\nNUEVO MENSAJE DEL CLIENTE:\n${message}\n\nClasifica correctamente la intención. Un saludo es conversation, una pregunta sobre Deluxury es information, una necesidad incompleta es discovery y solamente una solicitud suficientemente definida debe ser recommendation.`;
+    const userPrompt = `INFORMACIÓN OFICIAL DE DELUXURY:\n${knowledgeText(knowledge)}\n\nFILTROS ACTUALES:\n${JSON.stringify(previous)}\n\nCONVERSACIÓN RECIENTE:\n${conversation || "(sin conversación previa)"}\n\nNUEVO MENSAJE DEL CLIENTE:\n${message}\n\nClasifica correctamente la intención. Un saludo es conversation, una pregunta sobre Deluxury es information. Si quiere comprar pero faltan datos, usa discovery y pide EN UNA SOLA RESPUESTA todos los datos faltantes para recomendar: para quién, ocasión y presupuesto máximo como base; estilo/color solo si aportan valor. Nunca hagas una pregunta por cada dato. Si ya están los datos mínimos, usa recommendation inmediatamente.`;
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",

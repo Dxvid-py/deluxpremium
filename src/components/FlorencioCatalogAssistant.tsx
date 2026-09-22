@@ -49,6 +49,14 @@ const RECOMMENDATION_MARKER = "__florencio_recommendation__";
 
 function uid() { return crypto.randomUUID(); }
 
+function missingFlorencioRecommendationFields(filters: FlorencioFilters) {
+  const missing: string[] = [];
+  if (!filters.recipient) missing.push("para quién es");
+  if (!filters.occasion) missing.push("la ocasión");
+  if (!filters.budgetMax) missing.push("tu presupuesto máximo en COP");
+  return missing;
+}
+
 function parseMedia(raw?: string): MediaItem[] {
   if (!raw) return [];
   try {
@@ -276,7 +284,9 @@ export default function FlorencioCatalogAssistant() {
         ])).slice(0, 20),
       };
 
-      const nextRecs = result.intent === "recommendation"
+      const missing = missingFlorencioRecommendationFields(merged);
+      const shouldRecommend = result.intent === "recommendation" && missing.length === 0;
+      const nextRecs = shouldRecommend
         ? getRecommendations({
             ...merged,
             keywords: Array.from(new Set([
@@ -286,7 +296,10 @@ export default function FlorencioCatalogAssistant() {
           })
         : [];
 
-      const reply = result.reply.length > 220 ? `${result.reply.slice(0, 217)}…` : result.reply;
+      const discoveryReply = !shouldRecommend && missing.length
+        ? `Perfecto. Para recomendarte de una, solo necesito ${missing.join(", ").replace(/, ([^,]*)$/, " y $1")}. ¿Me das esos datos?`
+        : result.reply;
+      const reply = discoveryReply.length > 260 ? `${discoveryReply.slice(0, 257)}…` : discoveryReply;
       const assistant: ChatMessage = { id: uid(), role: "florencio", text: reply, createdAt: new Date().toISOString() };
       const finalMessages = [...nextMessages, assistant];
       setFilters(merged);
