@@ -214,8 +214,18 @@ export default function FlorencioCatalogAssistant() {
     }
   }, [messages, loading, activeTab]);
 
-  const getRecommendations = (next: FlorencioFilters) =>
-    rankFlorencioProducts(products, categories, next, 4);
+  const getRecommendations = (next: FlorencioFilters, catalog = products, catalogCategories = categories) =>
+    rankFlorencioProducts(catalog, catalogCategories, next, 4);
+
+  // Si el catálogo todavía estaba cargando cuando Florencio terminó de responder,
+  // recalculamos las recomendaciones en cuanto los productos reales estén disponibles.
+  useEffect(() => {
+    if (!session?.user.id) return;
+    if (!filters.keywords?.includes(RECOMMENDATION_MARKER)) return;
+    if (!products.length) return;
+    const ranked = rankFlorencioProducts(products, categories, filters, 4);
+    setRecommendations(ranked);
+  }, [session?.user.id, products, categories, filters]);
 
   const persist = async (nextMessages: ChatMessage[], nextFilters: FlorencioFilters, nextRecs: ReturnType<typeof rankFlorencioProducts>, queryText: string) => {
     if (!session?.user.id) return;
@@ -286,26 +296,45 @@ export default function FlorencioCatalogAssistant() {
 
       const missing = missingFlorencioRecommendationFields(merged);
       const shouldRecommend = result.intent === "recommendation" && missing.length === 0;
+      const recommendationFilters: FlorencioFilters = {
+        ...merged,
+        keywords: Array.from(new Set([
+          ...(merged.keywords ?? []),
+          RECOMMENDATION_MARKER,
+        ])).slice(0, 20),
+      };
+      let catalogProducts = products;
+      let catalogCategories = categories;
+
+      // Si el usuario envió el mensaje antes de que React Query terminara
+      // de cargar el catálogo, hacemos una lectura directa para no responder
+      // con una recomendación pero dejar la pantalla vacía.
+      if (shouldRecommend && catalogProducts.length === 0) {
+        const [{ data: freshProducts }, { data: freshCategories }] = await Promise.all([
+          supabase.from("products").select("*").order("sort_order", { ascending: true }),
+          supabase.from("categories").select("*").order("sort_order", { ascending: true }),
+        ]);
+        catalogProducts = (freshProducts ?? []) as unknown as Product[];
+        catalogCategories = (freshCategories ?? []) as unknown as typeof categories;
+      }
+
       const nextRecs = shouldRecommend
-        ? getRecommendations({
-            ...merged,
-            keywords: Array.from(new Set([
-              ...(merged.keywords ?? []),
-              RECOMMENDATION_MARKER,
-            ])).slice(0, 20),
-          })
+        ? getRecommendations(recommendationFilters, catalogProducts, catalogCategories)
         : [];
 
       const discoveryReply = !shouldRecommend && missing.length
         ? `Perfecto. Para recomendarte de una, solo necesito ${missing.join(", ").replace(/, ([^,]*)$/, " y $1")}. ¿Me das esos datos?`
         : result.reply;
       const reply = discoveryReply.length > 260 ? `${discoveryReply.slice(0, 257)}…` : discoveryReply;
-      const assistant: ChatMessage = { id: uid(), role: "florencio", text: reply, createdAt: new Date().toISOString() };
+      const assistantText = shouldRecommend && nextRecs.length === 0
+        ? `${reply} No encontré productos activos que cumplan exactamente esos filtros en el catálogo disponible.`
+        : reply;
+      const assistant: ChatMessage = { id: uid(), role: "florencio", text: assistantText, createdAt: new Date().toISOString() };
       const finalMessages = [...nextMessages, assistant];
       setFilters(merged);
       setRecommendations(nextRecs);
       setMessages(finalMessages);
-      await persist(finalMessages, { ...merged, keywords: nextRecs.length ? [...(merged.keywords ?? []), RECOMMENDATION_MARKER] : merged.keywords ?? [] }, nextRecs, text);
+      await persist(finalMessages, shouldRecommend ? recommendationFilters : merged, nextRecs, text);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Error desconocido";
       const assistant: ChatMessage = {
