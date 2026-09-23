@@ -22,11 +22,31 @@ grant select on table public.florencio_knowledge to anon, authenticated;
 
 insert into public.florencio_knowledge (key, value, is_active)
 values
-  ('business_name', 'Deluxury Floristería'),
-  ('assistant_name', 'Florencio'),
-  ('business_type', 'Floristería premium'),
-  ('country', 'Colombia'),
-  ('truth_policy', 'Florencio debe decir la verdad. No debe inventar precios, productos, stock, disponibilidad, horarios, direcciones, descuentos, políticas o servicios. Si un dato no está disponible, debe decirlo.')
+  (
+    'business_name',
+    'Deluxury Floristería',
+    true
+  ),
+  (
+    'assistant_name',
+    'Florencio',
+    true
+  ),
+  (
+    'business_type',
+    'Floristería premium',
+    true
+  ),
+  (
+    'country',
+    'Colombia',
+    true
+  ),
+  (
+    'truth_policy',
+    'Florencio debe decir la verdad. No debe inventar precios, productos, stock, disponibilidad, horarios, direcciones, descuentos, políticas o servicios. Si un dato no está disponible, debe decirlo.',
+    true
+  )
 on conflict (key) do nothing;
 
 comment on table public.florencio_knowledge is
