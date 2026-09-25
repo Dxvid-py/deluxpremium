@@ -1345,3 +1345,37 @@ body.florencio-page [aria-live="polite"] { display: none !important; }
 @media (max-width: 767px) {
   .florencio-chat-stage { min-height: auto; }
 }
+
+/* ---------- Deluxury compact home marquee ---------- */
+@keyframes homeBenefitsMarquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+.home-benefits-track {
+  width: max-content;
+  animation: homeBenefitsMarquee 34s linear infinite;
+  will-change: transform;
+}
+
+.home-benefits-track:hover {
+  animation-play-state: paused;
+}
+
+@media (max-width: 640px) {
+  .home-benefits-track {
+    animation-duration: 24s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-benefits-track {
+    width: 100%;
+    flex-wrap: wrap;
+    animation: none;
+    transform: none;
+  }
+  .home-benefits-track > div[aria-hidden="true"] {
+    display: none;
+  }
+}

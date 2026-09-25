@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
-  Heart,
   Image as ImageIcon,
   LogIn,
   Menu,
@@ -13,7 +12,6 @@ import {
   Package,
   Send,
   ShoppingBag,
-  Sparkles,
   UserRound,
   X,
 } from "lucide-react";
@@ -26,15 +24,11 @@ import { useContentTranslator } from "@/lib/i18n";
 import { parseFlorencioFilters, rankFlorencioProducts, type FlorencioFilters } from "@/lib/florencio-recommendations";
 import { askFlorencioAI } from "@/lib/florencio-ai";
 
-type Tab = "chat" | "recommendations" | "orders" | "account" | "gallery";
+type Tab = "chat" | "orders" | "account" | "gallery";
 type ChatMessage = { id: string; role: "user" | "florencio"; text: string; createdAt: string };
 type SessionRow = {
   id: string; user_id: string; title: string | null; messages: ChatMessage[];
   filters: FlorencioFilters; recommendation_product_ids: string[]; created_at: string; updated_at: string;
-};
-type RecommendationRow = {
-  id: string; session_id: string; product_id: string; query_text: string | null;
-  reason: string | null; rank: number; created_at: string;
 };
 type OrderRow = {
   id: string; order_number: string; total_cop: number; status: string; created_at: string;
@@ -110,6 +104,20 @@ function AuthPanel({ profileImage }: { profileImage: string }) {
     finally { setBusy(false); }
   };
 
+  const signInWithGoogle = async () => {
+    setBusy(true); setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/florencio` },
+      });
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo iniciar sesión con Google.");
+      setBusy(false);
+    }
+  };
+
   return <div className="mx-auto max-w-xl rounded-[28px] border border-primary/15 bg-white/90 p-6 shadow-[0_30px_90px_-56px_rgba(68,40,20,.55)] sm:p-9">
     <div className="flex items-center gap-4"><Avatar src={profileImage} size="lg" /><div><p className="font-display text-3xl">{mode === "in" ? "Bienvenido" : "Crea tu cuenta"}</p><p className="mt-1 text-sm text-muted-foreground">Necesitas una cuenta para usar la IA, guardar recomendaciones y consultar tus pedidos.</p></div></div>
     <form onSubmit={submit} className="mt-7 space-y-4">
@@ -119,18 +127,21 @@ function AuthPanel({ profileImage }: { profileImage: string }) {
       {error && <p className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs leading-relaxed text-destructive">{error}</p>}
       <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-[10px] tracking-[.18em] text-primary-foreground uppercase disabled:opacity-50">{busy ? "Procesando…" : mode === "in" ? "Entrar" : "Crear cuenta"}<LogIn className="h-4 w-4" /></button>
     </form>
+    <button type="button" onClick={() => void signInWithGoogle()} disabled={busy} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-white px-5 py-3.5 text-[10px] tracking-[.18em] uppercase transition-colors hover:border-primary disabled:opacity-50">
+      <span className="font-medium">G</span> Continuar con Google
+    </button>
     <button type="button" onClick={() => setMode(mode === "in" ? "up" : "in")} className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary">{mode === "in" ? "¿No tienes cuenta? Crear una" : "Ya tengo cuenta · Iniciar sesión"}</button>
   </div>;
 }
 
-function ProductCardMini({ product, profileImage, onAdd }: { product: Product & { matchReasons?: string[] }; profileImage: string; onAdd: (p: Product) => void }) {
+function ProductCardMini({ product, onAdd }: { product: Product & { matchReasons?: string[] }; onAdd: (p: Product) => void }) {
   const { currency } = useStore();
   const { data: settings } = useQuery(settingsQuery);
   const tc = useContentTranslator([product.name]);
   const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
   return <article className="group overflow-hidden rounded-2xl border border-border bg-white shadow-[0_18px_50px_-35px_rgba(60,35,18,.35)]">
     <div className="aspect-[4/3] overflow-hidden bg-secondary/30"><img src={product.images?.[0] ?? "/img/prod-01.jpg"} alt={tc(product.name)} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" /></div>
-    <div className="p-4"><div className="flex items-center gap-2"><Avatar src={profileImage} size="sm" /><span className="text-[8px] tracking-[.16em] text-primary uppercase">Florencio recomienda</span></div>
+    <div className="p-4"><p className="text-[8px] tracking-[.16em] text-primary uppercase">Florencio recomienda</p>
       <Link to="/producto/$slug" params={{ slug: product.slug }} className="mt-3 block font-display text-xl leading-tight hover:text-primary">{tc(product.name)}</Link>
       <p className="mt-1.5 min-h-10 text-xs leading-relaxed text-muted-foreground">{product.matchReasons?.[0] ?? "Una pieza que encaja con tu búsqueda."}</p>
       <div className="mt-4 flex items-center justify-between gap-3"><span className="text-sm font-medium text-primary">{formatMoney(Number(product.price_cop), currency, trm)}</span><button type="button" onClick={() => onAdd(product)} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-[9px] tracking-[.12em] text-background uppercase hover:bg-primary hover:text-primary-foreground"><ShoppingBag className="h-3.5 w-3.5" />Añadir</button></div>
@@ -142,7 +153,7 @@ export default function FlorencioCatalogAssistant() {
   const { data: products = [] } = useQuery(productsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
-  const { add } = useStore();
+  const { add, currency } = useStore();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("chat");
@@ -154,11 +165,12 @@ export default function FlorencioCatalogAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [filters, setFilters] = useState<FlorencioFilters>({ keywords: [] });
   const [recommendations, setRecommendations] = useState<ReturnType<typeof rankFlorencioProducts>>([]);
-  const [recommendationHistory, setRecommendationHistory] = useState<RecommendationRow[]>([]);
+  const [recommendationOpen, setRecommendationOpen] = useState(false);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [account, setAccount] = useState<{ full_name: string | null; phone: string | null; email: string | null } | null>(null);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const isCatalogPage = location.pathname.startsWith("/catalogo");
   const [catalogChatOpen, setCatalogChatOpen] = useState(false);
   const profileImage = settings?.["florencio_profile_image_url"] || settings?.["florencio_intro_image_url"] || "/img/florencio.png";
@@ -172,14 +184,13 @@ export default function FlorencioCatalogAssistant() {
   }, []);
 
   useEffect(() => {
-    if (!session?.user.id) { setAccount(null); setOrders([]); setRecommendationHistory([]); return; }
+    if (!session?.user.id) { setAccount(null); setOrders([]); return; }
     const userId = session.user.id;
     const load = async () => {
       setHistoryLoading(true);
-      const [{ data: profile }, { data: saved }, { data: recs }, { data: orderRows }] = await Promise.all([
+      const [{ data: profile }, { data: saved }, { data: orderRows }] = await Promise.all([
         supabase.from("profiles").select("full_name,phone,email").eq("user_id", userId).maybeSingle(),
         supabase.from("florencio_sessions").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("florencio_recommendations").select("id,session_id,product_id,query_text,reason,rank,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(24),
         supabase.from("orders").select("id,order_number,total_cop,status,created_at,delivery_date,delivery_slot,address,city,items").eq("user_id", userId).order("created_at", { ascending: false }).limit(12),
       ]);
       setAccount({ full_name: profile?.full_name ?? null, phone: profile?.phone ?? null, email: profile?.email ?? session.user.email ?? null });
@@ -190,7 +201,6 @@ export default function FlorencioCatalogAssistant() {
         setFilters(row.filters ?? { keywords: [] });
         setRecommendations(rankFlorencioProducts(products, categories, row.filters ?? { keywords: [] }, 4));
       }
-      setRecommendationHistory((recs ?? []) as RecommendationRow[]);
       setOrders((orderRows ?? []) as unknown as OrderRow[]);
       setHistoryLoading(false);
     };
@@ -202,8 +212,7 @@ export default function FlorencioCatalogAssistant() {
   useEffect(() => {
     if (!messages.length) {
       setMessages([
-        { id: "welcome-1", role: "florencio", text: "Hola. Soy Florencio, tu asistente floral de Deluxury.", createdAt: new Date().toISOString() },
-        { id: "welcome-2", role: "florencio", text: "Cuéntame para quién es el detalle, la ocasión o tu presupuesto y te guío.", createdAt: new Date().toISOString() },
+        { id: "welcome-1", role: "florencio", text: "Hola, soy Florencio.", createdAt: new Date().toISOString() },
       ]);
     }
   }, [messages.length]);
@@ -335,6 +344,7 @@ export default function FlorencioCatalogAssistant() {
       setRecommendations(nextRecs);
       setMessages(finalMessages);
       await persist(finalMessages, shouldRecommend ? recommendationFilters : merged, nextRecs, text);
+      if (shouldRecommend && nextRecs.length > 0) setRecommendationOpen(true);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Error desconocido";
       const assistant: ChatMessage = {
@@ -354,6 +364,7 @@ export default function FlorencioCatalogAssistant() {
 
   const addProduct = (product: Product) => {
     add(product);
+    setRecommendationOpen(false);
     window.dispatchEvent(new CustomEvent("florencio:product-selected", { detail: { name: product.name } }));
     const msg: ChatMessage = { id: uid(), role: "florencio", text: `Listo. Añadí ${product.name} a tu carrito.`, createdAt: new Date().toISOString() };
     setMessages((prev) => [...prev, msg]);
@@ -361,7 +372,6 @@ export default function FlorencioCatalogAssistant() {
 
   const tabs: Array<{ id: Tab; label: string; icon: typeof MessageCircle; private?: boolean }> = [
     { id: "chat", label: "Chat", icon: MessageCircle },
-    { id: "recommendations", label: "Recomendaciones", icon: Sparkles, private: true },
     { id: "orders", label: "Mis pedidos", icon: Package, private: true },
     { id: "account", label: "Mi cuenta", icon: UserRound },
     { id: "gallery", label: "Florencio", icon: ImageIcon },
@@ -410,18 +420,13 @@ export default function FlorencioCatalogAssistant() {
         {activeTab === "chat" && <div className="flex min-h-0 flex-1 flex-col">
           <div ref={chatRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7">
             <div className="mx-auto w-full max-w-4xl">
-              <div className="mb-6 grid gap-4 rounded-[26px] border border-primary/15 bg-gradient-to-br from-[#fffaf2] to-white p-5 sm:grid-cols-[auto_1fr] sm:items-center sm:p-6">
-                <div className="relative mx-auto sm:mx-0"><span className="absolute -inset-3 rounded-full border border-primary/10 animate-pulse" /><Avatar src={profileImage} size="lg" /></div>
-                <div><p className="text-[9px] tracking-[.2em] text-primary uppercase">Florencio IA</p><h2 className="mt-2 font-display text-3xl leading-tight sm:text-4xl">Hola, soy Florencio.</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Estoy aquí para ayudarte a elegir un detalle con intención. Habla conmigo de forma natural; yo conecto tu idea con el catálogo real de Deluxury.</p></div>
-              </div>
               {!session && <button type="button" onClick={() => selectTab("account")} className="mb-6 w-full rounded-2xl border border-primary/15 bg-primary/[.04] p-4 text-left text-sm leading-relaxed hover:bg-primary/[.06]"><strong>Inicia sesión para hablar con Florencio.</strong> Así también guardarás tus conversaciones, recomendaciones y pedidos.</button>}
               <div className="space-y-5">
                 {messages.map((m) => <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  {m.role === "florencio" ? <div className="flex max-w-[94%] items-start gap-3"><Avatar src={profileImage} size="sm" /><div><div className="rounded-2xl rounded-tl-md border border-border bg-white px-4 py-3.5 text-sm leading-relaxed shadow-sm sm:px-5">{m.text}</div><p className="mt-1.5 px-1 text-[8px] text-muted-foreground">Florencio · Deluxury</p></div></div> : <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-4 py-3.5 text-sm leading-relaxed text-primary-foreground shadow-[0_16px_34px_-24px_rgba(110,53,55,.55)] sm:px-5">{m.text}</div>}
+                  {m.role === "florencio" ? <div className="max-w-[94%] rounded-2xl rounded-tl-md border border-border bg-white px-4 py-3.5 text-sm leading-relaxed shadow-sm sm:px-5">{m.text}</div> : <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-4 py-3.5 text-sm leading-relaxed text-primary-foreground shadow-[0_16px_34px_-24px_rgba(110,53,55,.55)] sm:px-5">{m.text}</div>}
                 </div>)}
-                {loading && <div className="flex items-center gap-3 text-xs text-muted-foreground"><Avatar src={profileImage} size="sm" /><span className="rounded-full border border-border bg-white px-4 py-2.5">Florencio está pensando…</span></div>}
+                {loading && <div className="flex justify-start text-xs text-muted-foreground"><span className="rounded-full border border-border bg-white px-4 py-2.5">Pensando…</span></div>}
               </div>
-              {session && recommendations.length > 0 && <div className="mt-8 rounded-[26px] border border-primary/10 bg-white/70 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] tracking-[.18em] text-primary uppercase">Selección actual</p><h3 className="mt-1 font-display text-2xl">Lo que Florencio encontró</h3></div><button type="button" onClick={() => selectTab("recommendations")} className="text-[9px] tracking-[.16em] text-primary uppercase">Ver todo</button></div><div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{recommendations.map((p) => <ProductCardMini key={p.id} product={p} profileImage={profileImage} onAdd={addProduct} />)}</div></div>}
             </div>
           </div>
           <footer className="shrink-0 border-t border-border/80 bg-white/95 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-4">
@@ -430,12 +435,52 @@ export default function FlorencioCatalogAssistant() {
         </div>}
 
         {activeTab === "account" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-3xl"><p className="eyebrow">Mi cuenta</p><h2 className="mt-2 font-display text-4xl">Tu espacio con Florencio.</h2>{session ? <div className="mt-8 space-y-5"><div className="rounded-[26px] border border-border bg-white p-6"><div className="flex items-center gap-4"><Avatar src={profileImage} size="lg" /><div><p className="font-display text-2xl">{account?.full_name || "Cliente Deluxury"}</p><p className="mt-1 text-sm text-muted-foreground">{account?.email || session.user.email}</p></div></div><div className="mt-7 grid gap-4 sm:grid-cols-3">{[["Nombre", account?.full_name || "Pendiente"], ["Teléfono", account?.phone || "No registrado"], ["Correo", account?.email || session.user.email || ""]].map(([label, value]) => <div key={label} className="rounded-2xl bg-secondary/45 p-4"><p className="text-[8px] tracking-[.16em] text-primary uppercase">{label}</p><p className="mt-2 truncate text-sm">{value}</p></div>)}</div><Link to="/cuenta" className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-[9px] tracking-[.16em] text-primary-foreground uppercase">Gestionar cuenta <ArrowRight className="h-4 w-4" /></Link></div><button type="button" onClick={() => void supabase.auth.signOut()} className="rounded-full border border-border px-5 py-3 text-[9px] tracking-[.16em] uppercase hover:border-primary">Cerrar sesión</button></div> : <AuthPanel profileImage={profileImage} />}</div></div>}
-        {activeTab === "recommendations" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-5xl"><p className="eyebrow">Historial inteligente</p><h2 className="mt-2 font-display text-4xl">Mis recomendaciones.</h2>{!session ? <div className="mt-8"><AuthPanel profileImage={profileImage} /></div> : historyLoading ? <p className="mt-10 text-sm text-muted-foreground">Cargando tu historial…</p> : recommendationHistory.length === 0 ? <div className="mt-8 rounded-[26px] border border-dashed border-primary/20 bg-white/70 p-8"><Heart className="h-5 w-5 text-primary" /><p className="mt-4 font-display text-2xl">Todavía no hay recomendaciones guardadas.</p><button type="button" onClick={() => selectTab("chat")} className="mt-5 rounded-full bg-primary px-5 py-3 text-[9px] tracking-[.16em] text-primary-foreground uppercase">Hablar con Florencio</button></div> : <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recommendationHistory.map((r) => { const p = products.find((x) => x.id === r.product_id); return p ? <ProductCardMini key={r.id} product={{ ...p, matchReasons: r.reason ? [r.reason] : [] }} profileImage={profileImage} onAdd={addProduct} /> : null; })}</div>}</div></div>}
         {activeTab === "orders" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-5xl"><p className="eyebrow">Seguimiento</p><h2 className="mt-2 font-display text-4xl">Mis pedidos.</h2>{!session ? <div className="mt-8"><AuthPanel profileImage={profileImage} /></div> : orders.length === 0 ? <div className="mt-8 rounded-[26px] border border-dashed border-primary/20 bg-white/70 p-8"><Package className="h-5 w-5 text-primary" /><p className="mt-4 font-display text-2xl">Todavía no tienes pedidos.</p><p className="mt-2 text-sm text-muted-foreground">Cuando compres con tu cuenta, el estado aparecerá aquí.</p></div> : <div className="mt-8 space-y-4">{orders.map((order) => { const current = STATUS_STEPS.indexOf(order.status); return <article key={order.id} className="rounded-[26px] border border-border bg-white p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-display text-xl">{order.order_number}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString("es-CO")} · {order.city}</p></div><span className="rounded-full bg-primary/10 px-3 py-1.5 text-[9px] tracking-[.14em] text-primary uppercase">{order.status}</span></div><div className="mt-6 flex items-center gap-1">{STATUS_STEPS.map((step, i) => <div key={step} className="flex min-w-0 flex-1 items-center gap-1"><span title={step} className={`h-2.5 w-2.5 shrink-0 rounded-full ${i <= current ? "bg-primary" : "bg-border"}`} />{i < STATUS_STEPS.length - 1 && <span className={`h-px min-w-0 flex-1 ${i < current ? "bg-primary/50" : "bg-border"}`} />}</div>)}</div><div className="mt-5 grid gap-4 text-sm sm:grid-cols-3"><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Total</p><p className="mt-1 text-primary">{new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(order.total_cop))}</p></div><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Entrega</p><p className="mt-1">{order.delivery_date || "Por coordinar"}{order.delivery_slot ? ` · ${order.delivery_slot}` : ""}</p></div><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Dirección</p><p className="mt-1 truncate">{order.address || "Por coordinar"}</p></div></div><div className="mt-5 border-t border-border pt-4">{(order.items ?? []).slice(0, 4).map((item) => <div key={item.product_id} className="flex items-center gap-3 py-2"><img src={item.image || "/img/prod-01.jpg"} alt={item.name} className="h-10 w-8 rounded object-cover" /><p className="flex-1 text-sm">{item.qty} × {item.name}</p></div>)}</div></article>; })}</div>}</div></div>}
         {activeTab === "gallery" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-5xl"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow">Detrás de Florencio</p><h2 className="mt-2 font-display text-4xl">Momentos de Florencio.</h2><p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Fotos y reels configurados desde el panel de administración de Deluxury.</p></div><ImageIcon className="h-5 w-5 text-primary" /></div><div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{galleryMedia.map((item, i) => <a key={`${item.url}-${i}`} href={item.link || (item.type === "reel" ? item.url : undefined)} target={item.type === "reel" || item.link ? "_blank" : undefined} rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary/25">
           {item.type === "image" ? <img src={item.url} alt={item.caption || "Florencio"} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" /> : isVideo(item.url) ? <video src={item.url} muted loop autoPlay playsInline className="h-full w-full object-cover" /> : <div className="flex h-full flex-col justify-end bg-[radial-gradient(circle_at_50%_28%,rgba(187,140,86,.2),transparent_62%)] p-5"><span className="text-[8px] tracking-[.16em] text-primary uppercase">Reel de Florencio</span><p className="mt-2 font-display text-xl">{item.caption || "Ver reel"}</p><ArrowRight className="mt-4 h-4 w-4 text-primary" /></div>}
         </a>)}</div></div></div>}
       </main>
     </div>
+
+    {recommendationOpen && recommendations.length > 0 && (
+      <div className="fixed inset-0 z-[90] flex items-end justify-center bg-foreground/35 px-4 py-4 backdrop-blur-[2px] sm:items-center sm:py-8" role="dialog" aria-modal="true" aria-labelledby="florencio-recommendation-title">
+        <div className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-primary/15 bg-[#fffaf2] shadow-[0_35px_110px_-45px_rgba(42,24,12,.5)]">
+          <div className="flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-[8px] tracking-[.2em] text-primary uppercase">Florencio</p>
+              <h2 id="florencio-recommendation-title" className="mt-1 font-display text-2xl sm:text-3xl">Encontré algo para ti.</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Estas opciones salen del catálogo real de Deluxury.</p>
+            </div>
+            <button type="button" onClick={() => setRecommendationOpen(false)} aria-label="Cerrar recomendación" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="max-h-[62vh] overflow-y-auto px-5 py-5 sm:px-6">
+            <div className="space-y-3">
+              {recommendations.slice(0, 3).map((p) => {
+                const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
+                return (
+                  <article key={p.id} className="grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border bg-white p-3 sm:grid-cols-[104px_minmax(0,1fr)_auto] sm:p-4">
+                    <div className="aspect-square overflow-hidden rounded-xl bg-secondary/40">
+                      <img src={p.images?.[0] ?? "/img/prod-01.jpg"} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="min-w-0">
+                      <Link to="/producto/$slug" params={{ slug: p.slug }} onClick={() => setRecommendationOpen(false)} className="block font-display text-lg leading-tight hover:text-primary sm:text-xl">{p.name}</Link>
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{p.matchReasons?.[0] ?? "Una opción que coincide con tu búsqueda."}</p>
+                      <p className="mt-2 text-sm font-medium text-primary">{formatMoney(Number(p.price_cop), currency, trm)}</p>
+                    </div>
+                    <button type="button" onClick={() => addProduct(p)} className="shrink-0 rounded-full bg-primary px-3 py-2 text-[9px] tracking-[.14em] text-primary-foreground uppercase sm:px-4">Elegir</button>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+          <div className="grid gap-2 border-t border-border/70 p-4 sm:grid-cols-2">
+            <button type="button" onClick={() => { setRecommendationOpen(false); navigate({ to: "/catalogo" }); }} className="rounded-full border border-border bg-white px-4 py-3 text-[9px] tracking-[.18em] uppercase hover:border-primary">Ver catálogo</button>
+            <button type="button" onClick={() => setRecommendationOpen(false)} className="rounded-full bg-primary px-4 py-3 text-[9px] tracking-[.18em] text-primary-foreground uppercase">Ahora no</button>
+          </div>
+        </div>
+      </div>
+    )}
   </section>;
 }

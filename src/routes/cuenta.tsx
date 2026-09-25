@@ -55,6 +55,12 @@ function Cuenta() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!session) return;
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next === "checkout") window.location.assign("/checkout");
+  }, [session]);
+
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -100,12 +106,18 @@ function AuthCard() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const completeAuth = () => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next === "checkout") window.location.assign("/checkout");
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     if (mode === "in") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) toast.error(error.message);
+      else completeAuth();
     } else {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -118,10 +130,25 @@ function AuthCard() {
           .from("profiles")
           .insert({ user_id: data.user.id, full_name: name, email })
           .then(() => undefined);
-        toast.success(t("account.saved"));
+        if (data.session) completeAuth();
+        else toast.success(t("account.saved"));
       }
     }
     setBusy(false);
+  };
+
+  const signInWithGoogle = async () => {
+    setBusy(true);
+    const next = new URLSearchParams(window.location.search).get("next");
+    const query = next === "checkout" ? "?next=checkout" : "";
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/cuenta${query}` },
+    });
+    if (error) {
+      toast.error(error.message);
+      setBusy(false);
+    }
   };
 
   return (
@@ -172,6 +199,15 @@ function AuthCard() {
           className="press mt-8 w-full bg-primary px-7 py-4 text-[11px] tracking-[0.26em] text-primary-foreground uppercase disabled:opacity-60"
         >
           {busy ? "…" : mode === "in" ? t("auth.signIn") : t("auth.signUp")}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void signInWithGoogle()}
+          disabled={busy}
+          className="press mt-3 flex w-full items-center justify-center gap-2 border border-border bg-white px-7 py-4 text-[10px] tracking-[0.22em] uppercase transition-colors hover:border-primary disabled:opacity-60"
+        >
+          <span className="font-medium normal-case">G</span> Continuar con Google
         </button>
 
         <button

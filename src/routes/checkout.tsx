@@ -33,6 +33,8 @@ function Checkout() {
   const { lines, subtotal, clear, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
   const { data: settings } = useQuery(settingsQuery);
   const [sending, setSending] = useState(false);
+  const [session, setSession] = useState<Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<"checking" | "approved" | "rejected" | null>(null);
   const [paymentOrderNumber, setPaymentOrderNumber] = useState("");
   const [form, setForm] = useState({
@@ -56,6 +58,15 @@ function Checkout() {
   const florencioFee = florencioEnabled && deliveryWithFlorencio ? Number(settings?.["florencio_delivery_price_cop"] ?? 0) : 0;
   const total = subtotal + shippingDue + florencioFee;
   const whatsapp = settings?.["whatsapp_number"] ?? "573006301123";
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionReady(true);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -104,13 +115,19 @@ function Checkout() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (lines.length === 0) return;
+    const { data: latestSession } = await supabase.auth.getSession();
+    if (!latestSession.session) {
+      setSession(null);
+      toast.info("Para comprar en Deluxury necesitas iniciar sesión.");
+      return;
+    }
     if (!form.customer_name || !form.customer_phone || !form.address) {
       toast.error("Completa nombre, teléfono y dirección de entrega.");
       return;
     }
     setSending(true);
 
-    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionData = latestSession;
 
     const payload = {
       user_id: sessionData.session?.user.id ?? null,
@@ -232,6 +249,21 @@ function Checkout() {
                 </Link>
               </>
             )}
+          </div>
+        ) : !sessionReady ? (
+          <div className="mt-12 max-w-2xl rounded-2xl border border-border bg-secondary/20 p-8">
+            <p className="eyebrow">Cuenta</p>
+            <h2 className="mt-3 font-display text-3xl">Estamos comprobando tu sesión.</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">Un momento y podrás continuar con tu compra.</p>
+          </div>
+        ) : !session ? (
+          <div className="mt-12 max-w-2xl rounded-[26px] border border-primary/15 bg-[#fbf6ed] p-6 shadow-[0_24px_70px_-50px_rgba(62,37,20,.4)] sm:p-8">
+            <p className="eyebrow">Antes de comprar</p>
+            <h2 className="mt-3 font-display text-3xl">Inicia sesión para continuar.</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">Tu carrito seguirá guardado. Solo necesitamos tu cuenta para registrar el pedido y habilitar el pago.</p>
+            <div className="mt-6">
+              <a href="/cuenta?next=checkout" className="inline-flex items-center rounded-full bg-primary px-6 py-3.5 text-[10px] tracking-[.2em] text-primary-foreground uppercase">Iniciar sesión o crear cuenta</a>
+            </div>
           </div>
         ) : (
           <div className="mt-12 grid gap-12 lg:grid-cols-[1.4fr_1fr]">
