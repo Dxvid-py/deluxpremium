@@ -26,9 +26,13 @@ IDENTIDAD Y TONO
 - Eres cálido, elegante, natural y sincero.
 - No eres un vendedor agresivo.
 - Respondes de forma breve, humana y útil.
+- La mayoría de tus respuestas deben tener 1 o 2 frases.
 - Puedes conversar, explicar Deluxury y ayudar a encontrar productos reales.
+- Cuando recomiendes, di en una frase por qué la selección encaja con lo que pidió el cliente y deja que la interfaz muestre los productos.
 
 REGLA CENTRAL
+Tu única función es orientar sobre Deluxury Floristería y sus productos, compras y servicios.
+Si el usuario pregunta por matemáticas, programación, política, noticias, deportes, tareas escolares, recetas, entretenimiento, información general o cualquier tema que no tenga relación directa con Deluxury, NO respondas la pregunta. Di brevemente: "Puedo ayudarte con flores, arreglos, regalos, compras y servicios de Deluxury." No intentes resolver el tema externo.
 Tu prioridad es ayudar al cliente, no forzar una venta.
 
 INTENCIONES
@@ -169,6 +173,24 @@ Deno.serve(async (req) => {
     const message = String(body?.message ?? "").trim();
     if (!message) throw new Error("Mensaje vacío");
 
+    const offTopicPatterns = [
+      /\b(matem[aá]tica|matemáticas|sum[aá]|rest[aá]|multiplic|divid|ecuaci[oó]n|c[aá]lcul|porcentaje)\b/i,
+      /\b(program(ar|aci[oó]n)?|javascript|python|c[oó]digo|html|css|linux)\b/i,
+      /\b(presidente|elecci[oó]n|pol[ií]tica|partido pol[ií]tico)\b/i,
+      /\b(f[uú]tbol|baloncesto|tenis|deporte|videojuego|minecraft)\b/i,
+      /\b(tarea|examen|ensayo|qu[ií]mica|f[ií]sica|historia universal)\b/i,
+    ];
+    if (offTopicPatterns.some((pattern) => pattern.test(message))) {
+      return new Response(JSON.stringify({
+        intent: "information",
+        reply: "Puedo ayudarte con flores, arreglos, regalos, compras y servicios de Deluxury.",
+        filters: normalizePrevious(body?.currentFilters),
+        keywords: [],
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const previous = normalizePrevious(body?.currentFilters);
     const history = Array.isArray(body?.history) ? body.history.slice(-8) : [];
     const conversation = history
@@ -176,7 +198,7 @@ Deno.serve(async (req) => {
       .join("\n");
     const knowledge = await loadKnowledge();
 
-    const userPrompt = `INFORMACIÓN OFICIAL DE DELUXURY:\n${knowledgeText(knowledge)}\n\nFILTROS ACTUALES:\n${JSON.stringify(previous)}\n\nCONVERSACIÓN RECIENTE:\n${conversation || "(sin conversación previa)"}\n\nNUEVO MENSAJE DEL CLIENTE:\n${message}\n\nClasifica correctamente la intención. Un saludo es conversation, una pregunta sobre Deluxury es information. Si quiere comprar pero faltan datos, usa discovery y pide EN UNA SOLA RESPUESTA todos los datos faltantes para recomendar: para quién, ocasión y presupuesto máximo como base; estilo/color solo si aportan valor. Nunca hagas una pregunta por cada dato. Si ya están los datos mínimos, usa recommendation inmediatamente.`;
+    const userPrompt = `INFORMACIÓN OFICIAL DE DELUXURY:\n${knowledgeText(knowledge)}\n\nFILTROS ACTUALES:\n${JSON.stringify(previous)}\n\nCONVERSACIÓN RECIENTE:\n${conversation || "(sin conversación previa)"}\n\nNUEVO MENSAJE DEL CLIENTE:\n${message}\n\nClasifica correctamente la intención. Un saludo es conversation, una pregunta sobre Deluxury es information. Si quiere comprar y ya hay suficiente contexto (por ejemplo ocasión + destinatario, o un producto/categoría claramente indicada), usa recommendation y deja que la aplicación busque productos reales. Si faltan datos importantes, usa discovery y pide EN UNA SOLA RESPUESTA únicamente los datos faltantes. Nunca hagas una pregunta por cada dato. Mantén la respuesta corta. En recommendation explica en una sola frase por qué la selección encaja; no enumeres productos ni precios.`;
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",

@@ -16,7 +16,7 @@ function EditorialImage({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <div className="relative overflow-hidden rounded-sm bg-secondary/55">
-      <div className={`absolute inset-0 transition-opacity duration-300 ${loaded ? "opacity-0" : "opacity-100"}`} aria-hidden="true">
+      <div className={`absolute inset-0 transition-opacity duration-200 ${loaded ? "opacity-0" : "opacity-100"}`} aria-hidden="true">
         <div className="h-full w-full animate-pulse bg-secondary/70" />
       </div>
       <img
@@ -27,7 +27,7 @@ function EditorialImage({ src, alt }: { src: string; alt: string }) {
         width={1600}
         height={1100}
         onLoad={() => setLoaded(true)}
-        className={`aspect-[4/5] w-full object-cover transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`aspect-[4/5] w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </div>
   );
@@ -67,7 +67,7 @@ function Home() {
           <div className="min-w-0 flex-1">
             <p className="text-[8px] tracking-[.2em] text-primary uppercase sm:text-[9px]">Florencio IA</p>
             <p className="mt-0.5 truncate font-display text-lg sm:text-xl">Hola, soy Florencio.</p>
-            <p className="hidden text-[11px] text-muted-foreground sm:block">Recomendaciones con productos reales de Deluxury.</p>
+            <p className="hidden text-[11px] text-muted-foreground sm:block">Te ayudo a elegir entre productos reales de Deluxury.</p>
           </div>
           <Link
             to="/florencio"

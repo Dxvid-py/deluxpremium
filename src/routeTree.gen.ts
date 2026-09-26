@@ -19,6 +19,7 @@ import { Route as CuentaRouteImport } from './routes/cuenta'
 import { Route as FlorencioRouteImport } from './routes/florencio'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
 import { Route as PrivacidadRouteImport } from './routes/privacidad'
+import { Route as CondicionesRouteImport } from './routes/condiciones'
 import { Route as ColeccionSlugRouteImport } from './routes/coleccion.$slug'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
 
@@ -72,6 +73,11 @@ const PrivacidadRoute = PrivacidadRouteImport.update({
   path: '/privacidad',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CondicionesRoute = CondicionesRouteImport.update({
+  id: '/condiciones',
+  path: '/condiciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ColeccionSlugRoute = ColeccionSlugRouteImport.update({
   id: '/coleccion/$slug',
   path: '/coleccion/$slug',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/condiciones': typeof CondicionesRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/condiciones': typeof CondicionesRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/condiciones': typeof CondicionesRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
+    | '/condiciones'
     | '/coleccion/$slug'
     | '/producto/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
+    | '/condiciones'
     | '/coleccion/$slug'
     | '/producto/$slug'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
+    | '/condiciones'
     | '/coleccion/$slug'
     | '/producto/$slug'
   fileRoutesById: FileRoutesById
@@ -286,6 +298,7 @@ const rootRouteChildren: RootRouteChildren = {
   FlorencioRoute: FlorencioRoute,
   NosotrosRoute: NosotrosRoute,
   PrivacidadRoute: PrivacidadRoute,
+  CondicionesRoute: CondicionesRoute,
   ColeccionSlugRoute: ColeccionSlugRoute,
   ProductoSlugRoute: ProductoSlugRoute,
 }

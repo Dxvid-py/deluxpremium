@@ -152,6 +152,7 @@ export default function FlorencioChat({
   const [visibleCount, setVisibleCount] = useState(VISIBLE_MESSAGE_LIMIT);
   const [lastIntent, setLastIntent] = useState<"conversation" | "information" | "discovery" | "recommendation">("conversation");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [recommendationOpen, setRecommendationOpen] = useState(false);
   const { lang } = useI18n();
   const nextId = useRef(1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -199,6 +200,13 @@ export default function FlorencioChat({
   }, [messages, filters, lastIntent]);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("florencio:chat-visibility", { detail: { open: embedded || open } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent("florencio:chat-visibility", { detail: { open: false } }));
+    };
+  }, [open, embedded]);
+
+  useEffect(() => {
     if (embedded) return;
 
     const openChat = () => setOpen(true);
@@ -217,9 +225,7 @@ export default function FlorencioChat({
 
   useEffect(() => {
     if (!open || messages.length > 0) return;
-    const greeting = lang === "en"
-      ? "Hi, I'm Florencio. I can help you find a thoughtful floral gift."
-      : "Hola, soy Florencio. Puedo ayudarte a encontrar un detalle floral especial.";
+    const greeting = lang === "en" ? "Hi, I'm Florencio." : "Hola, soy Florencio.";
     setMessages([{ id: nextId.current++, role: "florencio", text: greeting }]);
     setLastIntent("conversation");
   }, [lang, open, messages.length]);
@@ -273,7 +279,10 @@ export default function FlorencioChat({
       };
 
       setFilters(merged);
-      if (result.intent === "recommendation") playFlorencioAudio("recommend", lang);
+      if (result.intent === "recommendation") {
+        playFlorencioAudio("recommend", lang);
+        setRecommendationOpen(true);
+      }
       if (result.intent === "discovery") playFlorencioAudio("ask", lang);
       setMessages((prev) => [
         ...prev,
@@ -316,6 +325,7 @@ export default function FlorencioChat({
   };
 
   const deleteChat = () => {
+    setRecommendationOpen(false);
     setMessages([]);
     setFilters({ keywords: [] });
     setLastIntent("conversation");
@@ -324,12 +334,13 @@ export default function FlorencioChat({
     nextId.current = 1;
     try { localStorage.removeItem(CHAT_KEY); } catch { /* ignore */ }
     window.setTimeout(() => {
-      setMessages([{ id: nextId.current++, role: "florencio", text: lang === "en" ? "New conversation. How can I help?" : "Nueva conversación. ¿En qué puedo ayudarte?" }]);
+      setMessages([{ id: nextId.current++, role: "florencio", text: lang === "en" ? "Hi, I'm Florencio." : "Hola, soy Florencio." }]);
     }, 0);
   };
 
   const addRecommended = (product: Product) => {
     add(product);
+    setRecommendationOpen(false);
     playFlorencioAudio("added", lang);
 
     window.dispatchEvent(
@@ -463,18 +474,9 @@ export default function FlorencioChat({
                 }`}
               >
                 {message.role === "florencio" ? (
-                  <div className="flex max-w-[92%] items-start gap-2.5">
-                    <div className="mt-1 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-primary/20 bg-secondary">
-                      <img
-                        src="/img/florencio.png"
-                        alt=""
-                        className="h-full w-full object-cover object-[50%_25%]"
-                      />
-                    </div>
-                    <p className="rounded-2xl rounded-tl-md border border-border/80 bg-white px-4 py-3 text-sm leading-relaxed shadow-[0_10px_30px_-24px_rgba(55,31,17,0.3)]">
-                      {message.text}
-                    </p>
-                  </div>
+                  <p className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/80 bg-white px-4 py-3 text-sm leading-relaxed shadow-[0_10px_30px_-24px_rgba(55,31,17,0.3)]">
+                    {message.text}
+                  </p>
                 ) : (
                   <p className="max-w-[82%] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground shadow-[0_14px_30px_-20px_rgba(109,56,56,0.5)]">
                     {message.text}
@@ -486,40 +488,7 @@ export default function FlorencioChat({
             {thinking && (
               <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
                 <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-primary" />
-                {lang === "en" ? "Florencio is preparing your selection…" : "Florencio está preparando tu selección…"}
-              </div>
-            )}
-
-            {showRecommendations && (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between gap-3 px-1">
-                  <div className="flex items-center gap-2 text-[9px] tracking-[0.2em] text-muted-foreground uppercase">
-                    <Sparkles className="h-3 w-3 text-primary" />
-                    Selección de Florencio
-                  </div>
-                  <span className="text-[9px] text-muted-foreground">
-                    {visibleRecommendations.length} {lang === "en" ? "items" : "piezas"}
-                  </span>
-                </div>
-
-                {visibleRecommendations.map((product) => (
-                  <ProductMiniCard
-                    key={product.id}
-                    product={product}
-                    onAdd={addRecommended}
-                    lang={lang}
-                  />
-                ))}
-              </div>
-            )}
-
-            {showRecommendations && products.length === 0 && (
-              <div className="rounded-2xl border border-primary/15 bg-white/75 p-5">
-                <p className="font-display text-xl">Tu catálogo está listo para cobrar vida.</p>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Cuando haya productos activos disponibles, Florencio los
-                  mostrará aquí con su precio y acceso directo a la compra.
-                </p>
+                {lang === "en" ? "Thinking…" : "Pensando…"}
               </div>
             )}
           </div>
@@ -569,6 +538,30 @@ export default function FlorencioChat({
           </div>
         </footer>
       </aside>
+
+      {recommendationOpen && showRecommendations && (
+        <div className="fixed inset-0 z-[95] flex items-end justify-center bg-black/25 p-3 backdrop-blur-[2px] sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Recomendaciones de Florencio">
+          <div className="max-h-[88dvh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-primary/20 bg-[#fffdf9] p-4 shadow-[0_35px_100px_-35px_rgba(55,31,17,.45)] sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[9px] tracking-[.2em] text-primary uppercase">Selección de Florencio</p>
+                <h3 className="mt-1 font-display text-3xl">Encontré estas opciones para ti.</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Puedes elegir una, ver todo el catálogo o continuar sin seleccionar.</p>
+              </div>
+              <button type="button" onClick={() => setRecommendationOpen(false)} className="rounded-full border border-border p-2" aria-label="Cerrar recomendaciones"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {visibleRecommendations.slice(0, 2).map((product) => (
+                <ProductMiniCard key={product.id} product={product} onAdd={addRecommended} lang={lang} />
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link to="/catalogo" onClick={() => setRecommendationOpen(false)} className="rounded-full bg-primary px-5 py-3 text-[9px] tracking-[.16em] text-primary-foreground uppercase">Ver catálogo</Link>
+              <button type="button" onClick={() => setRecommendationOpen(false)} className="rounded-full border border-border bg-white px-5 py-3 text-[9px] tracking-[.16em] uppercase">Ahora no</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

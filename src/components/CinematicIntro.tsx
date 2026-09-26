@@ -221,15 +221,16 @@ export default function CinematicIntro() {
             </p>
 
             <h1
-              className={`mt-4 font-display text-4xl leading-[1.02] transition-all duration-[1200ms] sm:text-6xl md:text-7xl ${
+              className={`mt-5 max-w-3xl font-display text-4xl leading-[1.04] transition-[opacity,transform] duration-700 sm:text-6xl md:text-7xl ${
                 stage >= 3
-                  ? "translate-y-0 opacity-100 blur-0"
-                  : "translate-y-6 opacity-0 blur-md"
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-3 opacity-0"
               }`}
             >
-              <span className="text-lux-gradient block">Floristería</span>
-              <span className="text-lux-gradient mt-1 block tracking-[0.14em]">
-                Deluxury
+              <span className="text-lux-gradient block">
+                {lang === "en"
+                  ? "Every occasion deserves an extraordinary gesture."
+                  : "Cada ocasión merece un detalle extraordinario."}
               </span>
             </h1>
 

@@ -206,27 +206,13 @@
 /* ---------- Animaciones ---------- */
 
 @keyframes lux-fade-up {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 34px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes lux-blur-in {
-  from {
-    opacity: 0;
-    filter: blur(14px);
-    transform: scale(1.04);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: none;
-  }
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes aura-pulse {
@@ -359,8 +345,8 @@
   to { opacity: 1; transform: perspective(1200px) rotateX(0) translateY(0); }
 }
 @keyframes anim-letters {
-  from { opacity: 0; letter-spacing: 0.4em; filter: blur(10px); }
-  to { opacity: 1; letter-spacing: normal; filter: blur(0); }
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 [data-anim] {
@@ -368,7 +354,7 @@
   will-change: transform, opacity, filter;
 }
 [data-anim].is-in {
-  animation-duration: 1.05s;
+  animation-duration: 650ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   animation-fill-mode: forwards;
   animation-delay: var(--delay, 0ms);
@@ -378,10 +364,10 @@
 [data-anim="left"].is-in { animation-name: anim-left; }
 [data-anim="right"].is-in { animation-name: anim-right; }
 [data-anim="zoom"].is-in { animation-name: anim-zoom; }
-[data-anim="clip"].is-in { animation-name: anim-clip; animation-duration: 1.4s; }
-[data-anim="tilt"].is-in { animation-name: anim-tilt; animation-duration: 1.3s; }
-[data-anim="blur"].is-in { animation-name: lux-blur-in; animation-duration: 1.4s; }
-[data-anim="letters"].is-in { animation-name: anim-letters; animation-duration: 1.6s; }
+[data-anim="clip"].is-in { animation-name: anim-fade-up; animation-duration: 700ms; }
+[data-anim="tilt"].is-in { animation-name: anim-fade-up; animation-duration: 700ms; }
+[data-anim="blur"].is-in { animation-name: lux-blur-in; animation-duration: 700ms; }
+[data-anim="letters"].is-in { animation-name: anim-letters; animation-duration: 700ms; }
 
 .reveal.is-in,
 .reveal-blur.is-in {
@@ -1377,5 +1363,17 @@ body.florencio-page [aria-live="polite"] { display: none !important; }
   }
   .home-benefits-track > div[aria-hidden="true"] {
     display: none;
+  }
+}
+
+
+/* Deluxury: reveal estable y ligero en dispositivos táctiles. */
+.reveal, .reveal-blur, [data-anim] {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+@media (max-width: 767px) {
+  [data-anim], .reveal, .reveal-blur {
+    will-change: opacity, transform;
   }
 }

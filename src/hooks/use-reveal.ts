@@ -1,54 +1,50 @@
 import { useEffect } from "react";
 
-const SELECTOR =
-  ".reveal, .reveal-blur, [data-anim], [data-stagger] > *";
+const SELECTOR = ".reveal, .reveal-blur, [data-anim], [data-stagger] > *";
 
 /**
- * Motor de animaciones de scroll.
- * - Observa todo elemento con .reveal, .reveal-blur o [data-anim].
- * - Reproduce la animación CADA vez que el elemento entra en pantalla
- *   (se resetea al salir), de modo que cada scroll vuelve a animar.
- * - Aplica retardos escalonados automáticos en contenedores [data-stagger].
- * - Observa nodos nuevos con MutationObserver (datos async de la base).
+ * Reveal ligero: cada elemento entra una sola vez.
+ * Evita reiniciar animaciones al hacer scroll hacia arriba/abajo,
+ * lo que reduce tirones en móviles.
  */
 export function useReveal() {
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
-      document
-        .querySelectorAll<HTMLElement>(SELECTOR)
-        .forEach((n) => n.classList.add("is-in"));
+      document.querySelectorAll<HTMLElement>(SELECTOR).forEach((node) => {
+        node.classList.add("is-in");
+      });
       return;
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
           const el = entry.target as HTMLElement;
-          if (entry.isIntersecting) {
-            el.classList.add("is-in");
-          } else if (entry.boundingClientRect.top > 0) {
-            // Sólo reseteamos cuando el elemento vuelve a quedar por debajo
-            // del viewport: así al volver a bajar se anima de nuevo.
-            el.classList.remove("is-in");
-          }
+          el.classList.add("is-in");
+          observer.unobserve(el);
         }
       },
-      { threshold: 0.16, rootMargin: "0px 0px -6% 0px" },
+      { threshold: 0.08, rootMargin: "0px 0px -8% 0px" },
     );
 
     const seen = new WeakSet<Element>();
+    let frame = 0;
+
     const scan = () => {
-      const nodes = Array.from(document.querySelectorAll<HTMLElement>(SELECTOR));
-      for (const node of nodes) {
+      frame = 0;
+      for (const node of document.querySelectorAll<HTMLElement>(SELECTOR)) {
         if (seen.has(node)) continue;
         seen.add(node);
+
         const parent = node.parentElement;
         if (parent?.hasAttribute("data-stagger")) {
           const index = Array.prototype.indexOf.call(parent.children, node);
-          const step = Number(parent.getAttribute("data-stagger") || 90);
-          node.style.setProperty("--delay", `${Math.min(index, 10) * step}ms`);
+          const step = Number(parent.getAttribute("data-stagger") || 70);
+          node.style.setProperty("--delay", `${Math.min(index, 8) * step}ms`);
           if (!node.hasAttribute("data-anim") && !node.classList.contains("reveal")) {
             node.setAttribute("data-anim", "fade-up");
           }
@@ -58,27 +54,22 @@ export function useReveal() {
     };
 
     scan();
-    // Re-escaneo con throttle: sin esto, cada cambio del DOM disparaba un
-    // querySelectorAll completo y trababa el scroll en celulares.
-    let scheduled = false;
+
     const mo = new MutationObserver(() => {
-      if (scheduled) return;
-      scheduled = true;
-      requestAnimationFrame(() => {
-        scheduled = false;
-        scan();
-      });
+      if (frame) return;
+      frame = requestAnimationFrame(scan);
     });
     mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       observer.disconnect();
       mo.disconnect();
+      if (frame) cancelAnimationFrame(frame);
     };
   }, []);
 }
 
-/** Parallax suave basado en scroll, con requestAnimationFrame. */
+/** Parallax suave, solo cuando el elemento está cerca del viewport. */
 export function useParallax(selector = "[data-parallax]") {
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -88,13 +79,12 @@ export function useParallax(selector = "[data-parallax]") {
     const update = () => {
       frame = 0;
       const vh = window.innerHeight;
-      const nodes = Array.from(document.querySelectorAll<HTMLElement>(selector));
-      for (const node of nodes) {
+      for (const node of document.querySelectorAll<HTMLElement>(selector)) {
         const rect = node.getBoundingClientRect();
         if (rect.bottom < -200 || rect.top > vh + 200) continue;
-        const speed = Number(node.dataset["parallax"] ?? 0.12);
+        const speed = Number(node.dataset["parallax"] ?? 0.08);
         const progress = (rect.top + rect.height / 2 - vh / 2) / vh;
-        node.style.transform = `translate3d(0, ${(progress * speed * 100).toFixed(2)}px, 0)`;
+        node.style.transform = `translate3d(0, ${(progress * speed * 70).toFixed(2)}px, 0)`;
       }
     };
     const onScroll = () => {
@@ -112,7 +102,6 @@ export function useParallax(selector = "[data-parallax]") {
   }, [selector]);
 }
 
-/** Barra de progreso de scroll (pinta --scroll-progress en <html>). */
 export function useScrollProgress() {
   useEffect(() => {
     if (typeof window === "undefined") return;

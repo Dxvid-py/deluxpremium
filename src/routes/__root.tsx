@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
 import CinematicIntro from "@/components/CinematicIntro";
 import FlorencioWidget from "@/components/FlorencioWidget";
+import WhatsAppFloating from "@/components/WhatsAppFloating";
 import CookieConsent from "@/components/CookieConsent";
 import { LanguageProvider } from "@/lib/i18n";
 import { PetalBurstProvider } from "@/lib/petal-burst";
@@ -57,5 +58,5 @@ function ScrollProgress() { useScrollProgress(); return <div className="scroll-p
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  return <QueryClientProvider client={queryClient}><LanguageProvider><StoreProvider><PetalBurstProvider><ScrollProgress /><CinematicIntro /><Header /><main className="min-h-0"><Outlet /></main><Footer /><CartDrawer /><FlorencioWidget /><CookieConsent /><Toaster position="bottom-center" /></PetalBurstProvider></StoreProvider></LanguageProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><LanguageProvider><StoreProvider><PetalBurstProvider><ScrollProgress /><CinematicIntro /><Header /><main className="min-h-0"><Outlet /></main><Footer /><CartDrawer /><FlorencioWidget /><WhatsAppFloating /><CookieConsent /><Toaster position="bottom-center" /></PetalBurstProvider></StoreProvider></LanguageProvider></QueryClientProvider>;
 }

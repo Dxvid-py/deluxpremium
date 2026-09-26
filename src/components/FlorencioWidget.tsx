@@ -36,6 +36,7 @@ export default function FlorencioWidget() {
   const [visible, setVisible] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(getFlorencioAudioEnabled());
   const [animationKey, setAnimationKey] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
   const hideTimer = useRef<number | null>(null);
   const greetingTimer = useRef<number | null>(null);
 
@@ -99,6 +100,18 @@ export default function FlorencioWidget() {
   };
 
   useEffect(() => {
+    const onChatVisibility = (event: Event) => {
+      setChatOpen(Boolean((event as CustomEvent<{ open?: boolean }>).detail?.open));
+    };
+    window.addEventListener("florencio:chat-visibility", onChatVisibility);
+    return () => window.removeEventListener("florencio:chat-visibility", onChatVisibility);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("florencio:widget-visibility", { detail: { visible: visible && !chatOpen } }));
+  }, [visible, chatOpen]);
+
+  useEffect(() => {
     const onAudioChanged = (event: Event) => {
       const enabled = Boolean((event as CustomEvent<{ enabled?: boolean }>).detail?.enabled);
       setAudioEnabled(enabled);
@@ -135,7 +148,7 @@ export default function FlorencioWidget() {
   }, [lang, pathname, show]);
 
   if (pathname === "/florencio") return null;
-  if (!mode) return null;
+  if (!mode || chatOpen) return null;
 
   const videoSrc = mode === "product" ? RAMO_VIDEO : SALUDANDO_VIDEO;
 

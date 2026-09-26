@@ -10,6 +10,7 @@ import {
   Menu,
   MessageCircle,
   Package,
+  Trash2,
   Send,
   ShoppingBag,
   UserRound,
@@ -20,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { categoriesQuery, productsQuery, settingsQuery, type Product } from "@/lib/queries";
 import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
-import { useContentTranslator } from "@/lib/i18n";
+import { useContentTranslator, useI18n } from "@/lib/i18n";
 import { parseFlorencioFilters, rankFlorencioProducts, type FlorencioFilters } from "@/lib/florencio-recommendations";
 import { askFlorencioAI } from "@/lib/florencio-ai";
 
@@ -153,6 +154,7 @@ export default function FlorencioCatalogAssistant() {
   const { data: products = [] } = useQuery(productsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
   const { data: settings } = useQuery(settingsQuery);
+  const { lang } = useI18n();
   const { add, currency } = useStore();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -173,6 +175,11 @@ export default function FlorencioCatalogAssistant() {
   const navigate = useNavigate();
   const isCatalogPage = location.pathname.startsWith("/catalogo");
   const [catalogChatOpen, setCatalogChatOpen] = useState(false);
+  useEffect(() => {
+    const open = !isCatalogPage || catalogChatOpen;
+    window.dispatchEvent(new CustomEvent("florencio:chat-visibility", { detail: { open } }));
+    return () => window.dispatchEvent(new CustomEvent("florencio:chat-visibility", { detail: { open: false } }));
+  }, [isCatalogPage, catalogChatOpen]);
   const profileImage = settings?.["florencio_profile_image_url"] || settings?.["florencio_intro_image_url"] || "/img/florencio.png";
   const media = useMemo(() => parseMedia(settings?.["florencio_media_json"]), [settings]);
   const galleryMedia = media.length ? media : [{ type: "image" as const, url: profileImage, caption: "Florencio en Deluxury" }];
@@ -288,6 +295,7 @@ export default function FlorencioCatalogAssistant() {
         message: text,
         history: messages.slice(-8).map((m) => ({ role: m.role, text: m.text })),
         currentFilters: filters,
+        language: lang,
       });
       const merged: FlorencioFilters = {
         recipient: result.filters.recipient ?? local.recipient ?? filters.recipient,
@@ -362,6 +370,18 @@ export default function FlorencioCatalogAssistant() {
     }
   };
 
+  const deleteChat = async () => {
+    setRecommendationOpen(false);
+    setRecommendations([]);
+    setFilters({ keywords: [] });
+    setInput("");
+    if (sessionId && session?.user.id) {
+      await supabase.from("florencio_sessions").delete().eq("id", sessionId).eq("user_id", session.user.id);
+    }
+    setSessionId(null);
+    setMessages([]);
+  };
+
   const addProduct = (product: Product) => {
     add(product);
     setRecommendationOpen(false);
@@ -414,7 +434,7 @@ export default function FlorencioCatalogAssistant() {
       <main className="flex h-full min-h-0 min-w-0 flex-col">
         <header id={isCatalogPage ? "catalog-florencio-chat" : undefined} className="flex shrink-0 items-center justify-between border-b border-border/80 bg-white/75 px-4 py-4 sm:px-6 lg:px-7">
           <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMobileMenu(true)} className="rounded-xl border border-border p-2 lg:hidden" aria-label="Abrir menú"><Menu className="h-5 w-5" /></button><Avatar src={profileImage} size="sm" /><div className="min-w-0"><div className="flex items-center gap-2"><p className="font-display text-xl">Florencio</p><span className="hidden rounded-full bg-primary/10 px-2 py-1 text-[8px] tracking-[.12em] text-primary uppercase sm:inline">IA floral</span></div><p className="truncate text-[9px] text-muted-foreground sm:text-xs">{tabs.find((x) => x.id === activeTab)?.label}</p></div></div>
-          <div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Vista previa"}</div>{isCatalogPage && <button type="button" onClick={() => setCatalogChatOpen(false)} aria-label="Cerrar chat desplegable" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>}</div>
+          <div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Vista previa"}</div><button type="button" onClick={() => void deleteChat()} aria-label="Borrar conversación" title="Borrar conversación" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-red-300 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>{isCatalogPage && <button type="button" onClick={() => setCatalogChatOpen(false)} aria-label="Cerrar chat desplegable" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>}</div>
         </header>
 
         {activeTab === "chat" && <div className="flex min-h-0 flex-1 flex-col">
