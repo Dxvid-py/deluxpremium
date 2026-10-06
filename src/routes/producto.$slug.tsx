@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Check, Minus, Plus, Truck, Sparkles } from "lucide-react";
-import { productsQuery, settingsQuery } from "@/lib/queries";
+import { Check, MessageCircle, Minus, Plus, Truck, Sparkles } from "lucide-react";
+import { categoriesQuery, productsQuery, settingsQuery } from "@/lib/queries";
+import { DEFAULT_WHATSAPP, isQuoteProduct, openWhatsApp, quoteMessage, upperName } from "@/lib/florencio-support";
 import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import ProductCard from "@/components/ProductCard";
@@ -32,6 +33,7 @@ function ProductDetail() {
   const { slug } = Route.useParams();
   const { data: products } = useQuery(productsQuery);
   const { data: settings } = useQuery(settingsQuery);
+  const { data: categories } = useQuery(categoriesQuery);
   const { add, buyNow, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
   const navigate = useNavigate();
   const [qty, setQty] = useState(1);
@@ -60,6 +62,8 @@ function ProductDetail() {
     );
   }
 
+  const quoteOnly = isQuoteProduct(product, categories, settings);
+  const categoryName = (categories ?? []).find((c) => c.id === product.category_id)?.name;
   const images = product.images.length > 0 ? product.images : ["/img/prod-01.jpg"];
 
   return (
@@ -69,7 +73,7 @@ function ProductDetail() {
           <div className="overflow-hidden rounded-sm bg-secondary">
             <img
               src={images[imgIndex]}
-              alt={product.name}
+              alt={upperName(product.name)}
               width={900}
               height={1125}
               className="aspect-4/5 w-full object-cover"
@@ -96,7 +100,7 @@ function ProductDetail() {
           <Link to="/catalogo" className="eyebrow hover:text-cream">
             ← Catálogo
           </Link>
-          <h1 className="mt-5 font-display text-4xl leading-tight md:text-5xl">{product.name}</h1>
+          <h1 className="mt-5 font-display text-4xl leading-tight md:text-5xl">{upperName(product.name)}</h1>
           <div className="mt-5 flex items-baseline gap-4">
             <span className="font-display text-3xl text-primary">
               {formatMoney(Number(product.price_cop), currency, trm)}
@@ -122,6 +126,21 @@ function ProductDetail() {
             </li>
           </ul>
 
+          {quoteOnly ? (
+            <div className="mt-10">
+              <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+                Las piezas de {categoryName ?? "Bodas & Eventos"} se diseñan y cotizan de forma personalizada. Escríbenos por WhatsApp y te enviamos la cotización.
+              </p>
+              <button
+                type="button"
+                onClick={() => openWhatsApp(settings?.["whatsapp_number"] ?? DEFAULT_WHATSAPP, quoteMessage(product, categoryName))}
+                className="inline-flex w-full items-center justify-center gap-2 bg-primary px-7 py-4 text-[11px] tracking-[.24em] text-primary-foreground uppercase transition-opacity hover:opacity-90 sm:w-auto"
+              >
+                <MessageCircle className="h-4 w-4" /> Cotizar por WhatsApp
+              </button>
+            </div>
+          ) : (
+            <>
           {florencioEnabled && (
             <label className="mt-8 flex cursor-pointer items-start gap-4 rounded-2xl border border-primary/20 bg-secondary/45 p-4 transition-colors hover:border-primary/45">
               <input
@@ -152,6 +171,8 @@ function ProductDetail() {
           <p className="mt-4 text-xs text-muted-foreground">
             {product.stock > 0 ? `${product.stock} unidades disponibles` : "Bajo pedido"}
           </p>
+            </>
+          )}
         </div>
       </div>
 

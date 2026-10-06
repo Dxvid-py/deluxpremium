@@ -19,15 +19,32 @@ import {
 import type { Session } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { categoriesQuery, productsQuery, settingsQuery, type Product } from "@/lib/queries";
+import { planFlorencioTurn } from "@/lib/florencio-turn";
+import OrderPaymentPanel, { orderPaymentState, orderStatusLabel, PROGRESS_STEPS } from "@/components/OrderPaymentPanel";
 import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/format";
 import { useContentTranslator, useI18n } from "@/lib/i18n";
 import { playFlorencioAudio } from "@/lib/florencio-voice";
-import { parseFlorencioFilters, rankFlorencioProducts, type FlorencioFilters } from "@/lib/florencio-recommendations";
+import {
+  colorLabel,
+  rankFlorencioProducts,
+  type FlorencioFilters,
+} from "@/lib/florencio-recommendations";
+import {
+  colorQuestionMessage,
+  DEFAULT_WHATSAPP,
+  isGreetingOnly,
+  isQuoteCategory,
+  openWhatsApp,
+  quoteMessage,
+  upperName,
+  welcomeMessage,
+} from "@/lib/florencio-support";
 import { askFlorencioAI } from "@/lib/florencio-ai";
 
 type Tab = "chat" | "orders" | "account" | "gallery";
-type ChatMessage = { id: string; role: "user" | "florencio"; text: string; createdAt: string };
+type ChatAction = { label: string; whatsappMessage: string };
+type ChatMessage = { id: string; role: "user" | "florencio"; text: string; createdAt: string; action?: ChatAction };
 type SessionRow = {
   id: string; user_id: string; title: string | null; messages: ChatMessage[];
   filters: FlorencioFilters; recommendation_product_ids: string[]; created_at: string; updated_at: string;
@@ -36,38 +53,17 @@ type OrderRow = {
   id: string; order_number: string; total_cop: number; status: string; created_at: string;
   delivery_date: string | null; delivery_slot: string | null; address: string; city: string;
   items: Array<{ product_id: string; name: string; image: string; qty: number; price_cop: number }>;
+  payment_status: string | null;
+  customer_name: string | null; customer_phone: string | null; customer_email: string | null;
 };
 type MediaItem = { type: "image" | "reel"; url: string; caption?: string; link?: string };
 
-const STARTERS = ["Quiero un ramo para mi pareja", "Regalo para mamá", "Algo elegante", "Máximo $200.000"];
-const STATUS_STEPS = ["nuevo", "confirmado", "en preparación", "en ruta", "entregado"];
-const RECOMMENDATION_MARKER = "__florencio_recommendation__";
+const STARTERS = ["Quiero algo de amor", "Flores para una boda", "Un detalle de condolencias", "Máximo $200.000"];
+const ORDER_SELECT = "id,order_number,total_cop,status,payment_status,created_at,delivery_date,delivery_slot,address,city,items,customer_name,customer_phone,customer_email";
+const GUEST_CHAT_KEY = "deluxury-florencio-guest-chat-v1";
+const RECOMMENDATION_MARKER = "__florencio_recommendation__"; // la función de IA lo añade a keywords; aquí se descarta
 
 function uid() { return crypto.randomUUID(); }
-
-// Florencio solo necesita DOS datos para recomendar: la colección (o la
-// ocasión) y el presupuesto máximo. No pregunta destinatario, estilo ni color.
-function missingFlorencioRecommendationFields(filters: FlorencioFilters, hasCollection: boolean) {
-  const missing: string[] = [];
-  if (!hasCollection && !filters.occasion) missing.push("la colección que te interesa");
-  if (!filters.budgetMax) missing.push("tu presupuesto máximo en COP");
-  return missing;
-}
-
-const normalizeText = (value: string) =>
-  value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
-
-// Busca en el catálogo real la colección (categoría) que mencionó el cliente,
-// ya sea en este mensaje o en los datos guardados de mensajes anteriores.
-function findCollection<C extends { id: string; name: string }>(text: string, keywords: string[], categories: C[]): C | undefined {
-  const haystack = normalizeText([text, ...keywords].join(" "));
-  return categories.find((category) => {
-    const name = normalizeText(category.name);
-    if (name.length < 3) return false;
-    if (haystack.includes(name)) return true;
-    return name.split(" ").filter((word) => word.length >= 4).some((word) => haystack.includes(word));
-  });
-}
 
 function parseMedia(raw?: string): MediaItem[] {
   if (!raw) return [];
@@ -152,21 +148,6 @@ function AuthPanel({ profileImage }: { profileImage: string }) {
   </div>;
 }
 
-function ProductCardMini({ product, onAdd }: { product: Product & { matchReasons?: string[] }; onAdd: (p: Product) => void }) {
-  const { currency } = useStore();
-  const { data: settings } = useQuery(settingsQuery);
-  const tc = useContentTranslator([product.name]);
-  const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
-  return <article className="group overflow-hidden rounded-2xl border border-border bg-white shadow-[0_18px_50px_-35px_rgba(60,35,18,.35)]">
-    <div className="aspect-[4/3] overflow-hidden bg-secondary/30"><img src={product.images?.[0] ?? "/img/prod-01.jpg"} alt={tc(product.name)} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" /></div>
-    <div className="p-4"><p className="text-[8px] tracking-[.16em] text-primary uppercase">Florencio recomienda</p>
-      <Link to="/producto/$slug" params={{ slug: product.slug }} className="mt-3 block font-display text-xl leading-tight hover:text-primary">{tc(product.name)}</Link>
-      <p className="mt-1.5 min-h-10 text-xs leading-relaxed text-muted-foreground">{product.matchReasons?.[0] ?? "Una pieza que encaja con tu búsqueda."}</p>
-      <div className="mt-4 flex items-center justify-between gap-3"><span className="text-sm font-medium text-primary">{formatMoney(Number(product.price_cop), currency, trm)}</span><button type="button" onClick={() => onAdd(product)} className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-3.5 py-2 text-[9px] tracking-[.12em] text-background uppercase hover:bg-primary hover:text-primary-foreground"><ShoppingBag className="h-3.5 w-3.5" />Añadir</button></div>
-    </div>
-  </article>;
-}
-
 export default function FlorencioCatalogAssistant() {
   const { data: products = [] } = useQuery(productsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
@@ -215,15 +196,15 @@ export default function FlorencioCatalogAssistant() {
       const [{ data: profile }, { data: saved }, { data: orderRows }] = await Promise.all([
         supabase.from("profiles").select("full_name,phone,email").eq("user_id", userId).maybeSingle(),
         supabase.from("florencio_sessions").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("orders").select("id,order_number,total_cop,status,created_at,delivery_date,delivery_slot,address,city,items").eq("user_id", userId).order("created_at", { ascending: false }).limit(12),
+        supabase.from("orders").select(ORDER_SELECT).eq("user_id", userId).order("created_at", { ascending: false }).limit(12),
       ]);
       setAccount({ full_name: profile?.full_name ?? null, phone: profile?.phone ?? null, email: profile?.email ?? session.user.email ?? null });
       if (saved) {
         const row = saved as unknown as SessionRow;
         setSessionId(row.id);
-        setMessages(Array.isArray(row.messages) && row.messages.length ? row.messages : []);
-        setFilters(row.filters ?? { keywords: [] });
-        setRecommendations(rankFlorencioProducts(products, categories, row.filters ?? { keywords: [] }, 4));
+        // Si el cliente ya venía hablando como invitado, no le borramos esa conversación al iniciar sesión.
+        setMessages((prev) => (prev.length ? prev : Array.isArray(row.messages) ? row.messages : []));
+        setFilters((prev) => (prev.collection || prev.budgetMax || prev.keywords?.length ? prev : row.filters ?? { keywords: [] }));
       }
       setOrders((orderRows ?? []) as unknown as OrderRow[]);
       setHistoryLoading(false);
@@ -239,21 +220,54 @@ export default function FlorencioCatalogAssistant() {
     }
   }, [messages, loading, activeTab]);
 
-  const getRecommendations = (next: FlorencioFilters, catalog = products, catalogCategories = categories) =>
-    rankFlorencioProducts(catalog, catalogCategories, next, 4);
+  const phone = settings?.["whatsapp_number"] ?? DEFAULT_WHATSAPP;
+  const trmValue = Number(settings?.["trm_cop_usd"] ?? 3950);
 
-  // Si el catálogo todavía estaba cargando cuando Florencio terminó de responder,
-  // recalculamos las recomendaciones en cuanto los productos reales estén disponibles.
+  /* ── Invitado: la conversación se guarda en este navegador ── */
+  const [guestReady, setGuestReady] = useState(false);
   useEffect(() => {
+    if (!authReady || session || guestReady) return;
+    try {
+      const raw = localStorage.getItem(GUEST_CHAT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { messages?: ChatMessage[]; filters?: FlorencioFilters };
+        if (Array.isArray(parsed.messages)) {
+          setMessages(parsed.messages.filter((m) => m && (m.role === "user" || m.role === "florencio") && typeof m.text === "string").slice(-30));
+        }
+        if (parsed.filters && Array.isArray(parsed.filters.keywords)) setFilters(parsed.filters);
+      }
+    } catch { /* historial local ilegible: se ignora */ }
+    setGuestReady(true);
+  }, [authReady, session, guestReady]);
+
+  useEffect(() => {
+    if (!guestReady || session) return;
+    try { localStorage.setItem(GUEST_CHAT_KEY, JSON.stringify({ messages: messages.slice(-30), filters })); } catch { /* sin almacenamiento */ }
+  }, [guestReady, session, messages, filters]);
+
+  // Al volver a abrir el chat con colección + presupuesto guardados, reconstruimos la selección.
+  const recsRestored = useRef(false);
+  useEffect(() => {
+    if (recsRestored.current || !products.length || !categories.length) return;
+    if (!filters.collection || !filters.budgetMax) return;
+    recsRestored.current = true;
+    setRecommendations(rankFlorencioProducts(products, categories, filters, 4));
+  }, [products, categories, filters]);
+
+  const loadOrders = async () => {
     if (!session?.user.id) return;
-    if (!filters.keywords?.includes(RECOMMENDATION_MARKER)) return;
-    if (!products.length) return;
-    const ranked = rankFlorencioProducts(products, categories, filters, 4);
-    setRecommendations(ranked);
-  }, [session?.user.id, products, categories, filters]);
+    const { data } = await supabase.from("orders").select(ORDER_SELECT).eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(12);
+    setOrders((data ?? []) as unknown as OrderRow[]);
+  };
+
+  // Al abrir "Mis pedidos" siempre leemos el estado más reciente (lo escribe el webhook de pagos).
+  useEffect(() => {
+    if (activeTab === "orders" && session?.user.id) void loadOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, session?.user.id]);
 
   const persist = async (nextMessages: ChatMessage[], nextFilters: FlorencioFilters, nextRecs: ReturnType<typeof rankFlorencioProducts>, queryText: string) => {
-    if (!session?.user.id) return;
+    if (!session?.user.id) return; // invitados: se guarda solo en el navegador
     const payload = {
       user_id: session.user.id,
       title: queryText.slice(0, 80),
@@ -290,97 +304,75 @@ export default function FlorencioCatalogAssistant() {
   const send = async (raw = input) => {
     const text = raw.trim();
     if (!text || loading) return;
-    if (!session) { setActiveTab("account"); setMobileMenu(false); return; }
 
-    const local = parseFlorencioFilters(text);
     setInput("");
     setLoading(true);
     const userMessage: ChatMessage = { id: uid(), role: "user", text, createdAt: new Date().toISOString() };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
+    const firstContact = !messages.some((m) => m.role === "user");
 
     try {
-      const result = await askFlorencioAI({
-        message: text,
-        history: messages.slice(-8).map((m) => ({ role: m.role, text: m.text })),
-        currentFilters: filters,
-        language: lang,
-      });
-      const merged: FlorencioFilters = {
-        recipient: result.filters.recipient ?? local.recipient ?? filters.recipient,
-        occasion: result.filters.occasion ?? local.occasion ?? filters.occasion,
-        style: result.filters.style ?? local.style ?? filters.style,
-        color: result.filters.color ?? local.color ?? filters.color,
-        budgetMax: result.filters.budgetMax ?? local.budgetMax ?? filters.budgetMax,
-        keywords: Array.from(new Set([
-          ...(filters.keywords ?? []),
-          ...(local.keywords ?? []),
-          ...(result.keywords ?? []),
-          ...(result.filters.keywords ?? []),
-        ])).slice(0, 20),
-      };
-
-      const collection = findCollection(text, merged.keywords ?? [], categories);
-      const missing = missingFlorencioRecommendationFields(merged, Boolean(collection));
-      // Colección + presupuesto completos => recomendamos, salvo que sea solo charla o una consulta informativa.
-      const shouldRecommend = missing.length === 0 && (result.intent === "recommendation" || result.intent === "discovery");
-      const recommendationFilters: FlorencioFilters = {
-        ...merged,
-        keywords: Array.from(new Set([
-          ...(collection ? [normalizeText(collection.name)] : []),
-          ...(merged.keywords ?? []),
-          RECOMMENDATION_MARKER,
-        ])).slice(0, 20),
-      };
+      // Catálogo real (si React Query aún no terminó de cargar, lo leemos directo).
       let catalogProducts = products;
       let catalogCategories = categories;
-
-      // Si el usuario envió el mensaje antes de que React Query terminara
-      // de cargar el catálogo, hacemos una lectura directa para no responder
-      // con una recomendación pero dejar la pantalla vacía.
-      if (shouldRecommend && catalogProducts.length === 0) {
+      if (!catalogProducts.length || !catalogCategories.length) {
         const [{ data: freshProducts }, { data: freshCategories }] = await Promise.all([
           supabase.from("products").select("*").order("sort_order", { ascending: true }),
           supabase.from("categories").select("*").order("sort_order", { ascending: true }),
         ]);
-        catalogProducts = (freshProducts ?? []) as unknown as Product[];
-        catalogCategories = (freshCategories ?? []) as unknown as typeof categories;
+        if (!catalogProducts.length) catalogProducts = (freshProducts ?? []) as unknown as Product[];
+        if (!catalogCategories.length) catalogCategories = (freshCategories ?? []) as unknown as typeof categories;
+      }
+      const activeCategories = catalogCategories.filter((c) => c.is_active !== false);
+      const greetingOnly = isGreetingOnly(text);
+
+      // La IA se usa para entender la conversación; si falla, el motor local sigue funcionando.
+      let ai: Awaited<ReturnType<typeof askFlorencioAI>> | null = null;
+      if (!greetingOnly) {
+        try {
+          ai = await askFlorencioAI({
+            message: text,
+            history: messages.slice(-8).map((m) => ({ role: m.role, text: m.text })),
+            currentFilters: filters,
+            language: lang,
+            categories: activeCategories.map((c) => ({ name: c.name, slug: c.slug, description: c.description })),
+          });
+        } catch (error) {
+          console.warn("Florencio IA no disponible; uso el motor local.", error);
+        }
       }
 
-      // Si el cliente nombró una colección real del catálogo, solo se recomienda de esa colección.
-      const collectionPool = collection
-        ? catalogProducts.filter((product) => product.category_id === collection.id)
-        : catalogProducts;
-      const nextRecs = shouldRecommend
-        ? getRecommendations(recommendationFilters, collectionPool, catalogCategories)
-        : [];
+      const plan = planFlorencioTurn({
+        text,
+        lang,
+        firstContact,
+        filters,
+        categories: activeCategories,
+        products: catalogProducts,
+        settings,
+        ai,
+      });
+      const { merged, replyText, shouldRecommend, asking } = plan;
+      const action = plan.action;
+      const nextRecs = plan.recommendations;
 
-      const discoveryReply = !shouldRecommend && missing.length
-        ? `Perfecto. Para recomendarte de una, solo necesito ${missing.join(", ").replace(/, ([^,]*)$/, " y $1")}. ¿Me das esos datos?`
-        : result.reply;
-      const reply = discoveryReply.length > 260 ? `${discoveryReply.slice(0, 257)}…` : discoveryReply;
-      const assistantText = shouldRecommend && nextRecs.length === 0
-        ? `${reply} No encontré productos activos que cumplan exactamente esos filtros en el catálogo disponible.`
-        : reply;
-      const assistant: ChatMessage = { id: uid(), role: "florencio", text: assistantText, createdAt: new Date().toISOString() };
+      const assistant: ChatMessage = { id: uid(), role: "florencio", text: replyText.slice(0, 700), createdAt: new Date().toISOString(), ...(action ? { action } : {}) };
       const finalMessages = [...nextMessages, assistant];
       setFilters(merged);
       setRecommendations(nextRecs);
       setMessages(finalMessages);
-      await persist(finalMessages, shouldRecommend ? recommendationFilters : merged, nextRecs, text);
+      try { await persist(finalMessages, merged, nextRecs, text); } catch (error) { console.warn("No se pudo guardar la conversación.", error); }
       if (shouldRecommend && nextRecs.length > 0) setRecommendationOpen(true);
 
-      // Florencio habla según lo que pasó y en el idioma elegido en la intro.
       if (shouldRecommend) void playFlorencioAudio(nextRecs.length > 0 ? "recommend" : "budget", lang);
-      else if (result.intent === "discovery" || missing.length) void playFlorencioAudio("ask", lang);
+      else if (asking) void playFlorencioAudio("ask", lang);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : "Error desconocido";
+      console.error("Florencio: error inesperado", error);
       const assistant: ChatMessage = {
         id: uid(),
         role: "florencio",
-        text: detail.includes("OpenAI")
-          ? "Tuve un problema temporal al consultar mi inteligencia. No voy a inventarte una recomendación; inténtalo de nuevo en un momento."
-          : "No pude completar esta conversación correctamente. Inténtalo de nuevo.",
+        text: "Disculpa, tuve un inconveniente al procesar tu mensaje. ¿Me lo puedes escribir de nuevo, por favor?",
         createdAt: new Date().toISOString(),
       };
       setRecommendations([]);
@@ -400,14 +392,41 @@ export default function FlorencioCatalogAssistant() {
     }
     setSessionId(null);
     setMessages([]);
+    try { localStorage.removeItem(GUEST_CHAT_KEY); } catch { /* ignore */ }
   };
 
-  const addProduct = (product: Product) => {
+  const addProduct = (product: Product & { colorMatch?: boolean | undefined; requestedColor?: string | undefined }) => {
+    const category = categories.find((c) => c.id === product.category_id);
+
+    // Bodas & Eventos: no hay carrito, se cotiza por WhatsApp con el link del producto.
+    if (isQuoteCategory(category, settings)) {
+      openWhatsApp(phone, quoteMessage(product, category?.name, lang));
+      return;
+    }
+
     add(product);
     setRecommendationOpen(false);
     window.dispatchEvent(new CustomEvent("florencio:product-selected", { detail: { name: product.name } }));
     void playFlorencioAudio("added", lang);
-    const msg: ChatMessage = { id: uid(), role: "florencio", text: lang === "en" ? `Done. I added ${product.name} to your cart.` : `Listo. Añadí ${product.name} a tu carrito.`, createdAt: new Date().toISOString() };
+
+    const needsColorAsk = Boolean(product.requestedColor) && product.colorMatch === false;
+    const loginNote = session
+      ? ""
+      : lang === "en" ? " To pay you'll need to sign in; your cart stays saved." : " Para pagar necesitarás iniciar sesión; tu carrito quedará guardado.";
+    const colorNote = needsColorAsk
+      ? lang === "en" ? " If you'd like it in another color, ask us on WhatsApp." : " Si lo quieres en otro color, pregúntanos por WhatsApp."
+      : "";
+    const msg: ChatMessage = {
+      id: uid(),
+      role: "florencio",
+      text: lang === "en"
+        ? `Done. I added ${upperName(product.name)} to your cart.${colorNote}${loginNote}`
+        : `Listo. Añadí ${upperName(product.name)} a tu carrito.${colorNote}${loginNote}`,
+      createdAt: new Date().toISOString(),
+      ...(needsColorAsk && product.requestedColor
+        ? { action: { label: lang === "en" ? "Ask about another color" : "Preguntar por otro color", whatsappMessage: colorQuestionMessage(product, product.requestedColor, lang) } }
+        : {}),
+    };
     setMessages((prev) => [...prev, msg]);
   };
 
@@ -442,7 +461,7 @@ export default function FlorencioCatalogAssistant() {
     <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(138,101,59,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(138,101,59,.035)_1px,transparent_1px)] [background-size:42px_42px]" />
     <div className="relative h-[calc(100dvh-8rem)] min-h-[620px] lg:grid lg:grid-cols-[228px_minmax(0,1fr)]">
       <aside className="hidden border-r border-border/80 bg-[#fcf8f2]/90 p-5 lg:flex lg:flex-col">
-        <div className="flex items-center gap-3"><Avatar src={profileImage} /><div className="min-w-0"><p className="font-display text-2xl">Florencio</p><p className="text-[8px] tracking-[.14em] text-muted-foreground uppercase">Asistente floral</p><span className="mt-1 flex items-center gap-1.5 text-[9px] text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{session ? "En línea" : "Inicia sesión"}</span></div></div>
+        <div className="flex items-center gap-3"><Avatar src={profileImage} /><div className="min-w-0"><p className="font-display text-2xl">Florencio</p><p className="text-[8px] tracking-[.14em] text-muted-foreground uppercase">Asistente floral</p><span className="mt-1 flex items-center gap-1.5 text-[9px] text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{session ? "En línea" : "Invitado"}</span></div></div>
         <nav className="mt-8 space-y-1.5">{tabs.map((t) => <span key={t.id}>{navItem(t.id)}</span>)}</nav>
         <div className="mt-auto pt-6">{session ? <button type="button" onClick={() => void supabase.auth.signOut()} className="w-full rounded-2xl border border-border px-4 py-3 text-[9px] tracking-[.16em] text-muted-foreground uppercase hover:border-primary">Cerrar sesión</button> : <button type="button" onClick={() => selectTab("account")} className="w-full rounded-2xl bg-primary px-4 py-3 text-[9px] tracking-[.16em] text-primary-foreground uppercase">Entrar / crear cuenta</button>}</div>
       </aside>
@@ -455,28 +474,29 @@ export default function FlorencioCatalogAssistant() {
       <main className="flex h-full min-h-0 min-w-0 flex-col">
         <header id={isCatalogPage ? "catalog-florencio-chat" : undefined} className="flex shrink-0 items-center justify-between border-b border-border/80 bg-white/75 px-4 py-4 sm:px-6 lg:px-7">
           <div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMobileMenu(true)} className="rounded-xl border border-border p-2 lg:hidden" aria-label="Abrir menú"><Menu className="h-5 w-5" /></button><Avatar src={profileImage} size="sm" /><div className="min-w-0"><div className="flex items-center gap-2"><p className="font-display text-xl">Florencio</p><span className="hidden rounded-full bg-primary/10 px-2 py-1 text-[8px] tracking-[.12em] text-primary uppercase sm:inline">IA floral</span></div><p className="truncate text-[9px] text-muted-foreground sm:text-xs">{tabs.find((x) => x.id === activeTab)?.label}</p></div></div>
-          <div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Vista previa"}</div><button type="button" onClick={() => void deleteChat()} aria-label="Borrar conversación" title="Borrar conversación" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-red-300 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>{isCatalogPage && <button type="button" onClick={() => setCatalogChatOpen(false)} aria-label="Cerrar chat desplegable" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>}</div>
+          <div className="flex items-center gap-2"><div className="hidden items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-[8px] tracking-[.12em] text-muted-foreground uppercase sm:flex"><span className={`h-1.5 w-1.5 rounded-full ${session ? "bg-emerald-500" : "bg-primary"}`} />{session ? "Cuenta activa" : "Invitado"}</div><button type="button" onClick={() => void deleteChat()} aria-label="Borrar conversación" title="Borrar conversación" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-red-300 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>{isCatalogPage && <button type="button" onClick={() => setCatalogChatOpen(false)} aria-label="Cerrar chat desplegable" className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-white hover:border-primary/40 hover:text-primary"><ChevronUp className="h-4 w-4" /></button>}</div>
         </header>
 
         {activeTab === "chat" && <div className="flex min-h-0 flex-1 flex-col">
           <div ref={chatRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7">
             <div className="mx-auto w-full max-w-4xl">
-              {!session && <button type="button" onClick={() => selectTab("account")} className="mb-6 w-full rounded-2xl border border-primary/15 bg-primary/[.04] p-4 text-left text-sm leading-relaxed hover:bg-primary/[.06]"><strong>Inicia sesión para hablar con Florencio.</strong> Así también guardarás tus conversaciones, recomendaciones y pedidos.</button>}
+              {!session && <p className="mb-6 rounded-2xl border border-primary/15 bg-primary/[.04] p-4 text-xs leading-relaxed text-muted-foreground">Puedes hablar con Florencio y recibir recomendaciones <strong className="text-foreground">sin crear una cuenta</strong>. Solo necesitarás <button type="button" onClick={() => selectTab("account")} className="underline decoration-primary/40 underline-offset-2 hover:text-primary">iniciar sesión</button> para pagar tu pedido, guardar tu historial y ver tus compras.</p>}
+              <div className="mb-5 flex justify-start"><div className="max-w-[94%] rounded-2xl rounded-tl-md border border-border bg-white px-4 py-3.5 text-sm leading-relaxed shadow-sm sm:px-5">{welcomeMessage(lang)}</div></div>
               <div className="space-y-5">
                 {messages.map((m) => <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  {m.role === "florencio" ? <div className="max-w-[94%] rounded-2xl rounded-tl-md border border-border bg-white px-4 py-3.5 text-sm leading-relaxed shadow-sm sm:px-5">{m.text}</div> : <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-4 py-3.5 text-sm leading-relaxed text-primary-foreground shadow-[0_16px_34px_-24px_rgba(110,53,55,.55)] sm:px-5">{m.text}</div>}
+                  {m.role === "florencio" ? <div className="max-w-[94%]"><div className="rounded-2xl rounded-tl-md border border-border bg-white px-4 py-3.5 text-sm leading-relaxed shadow-sm sm:px-5">{m.text}</div>{m.action && <button type="button" onClick={() => openWhatsApp(phone, m.action!.whatsappMessage)} className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-[9px] tracking-[.14em] text-white uppercase shadow-sm transition hover:opacity-90"><MessageCircle className="h-3.5 w-3.5" />{m.action.label}</button>}</div> : <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-primary px-4 py-3.5 text-sm leading-relaxed text-primary-foreground shadow-[0_16px_34px_-24px_rgba(110,53,55,.55)] sm:px-5">{m.text}</div>}
                 </div>)}
                 {loading && <div className="flex justify-start text-xs text-muted-foreground"><span className="rounded-full border border-border bg-white px-4 py-2.5">Pensando…</span></div>}
               </div>
             </div>
           </div>
           <footer className="shrink-0 border-t border-border/80 bg-white/95 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-4">
-            <div className="mx-auto max-w-4xl"><div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{STARTERS.map((s) => <button key={s} type="button" onClick={() => void send(s)} disabled={!session || loading} className="shrink-0 rounded-full border border-border bg-background px-3.5 py-2 text-[9px] text-muted-foreground transition hover:border-primary/50 hover:text-primary disabled:opacity-40">{s}</button>)}</div><form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-center gap-2 rounded-2xl border border-border bg-background p-1.5 focus-within:border-primary/45"><MessageCircle className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" /><input value={input} onChange={(e) => setInput(e.target.value)} placeholder={session ? "Escríbele a Florencio…" : "Inicia sesión para escribirle a Florencio…"} className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm outline-none placeholder:text-muted-foreground/60" disabled={!session || loading} /><button type="submit" disabled={!session || !input.trim() || loading} aria-label="Enviar mensaje" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40"><Send className="h-4 w-4" /></button></form><p className="mt-2 text-center text-[8px] tracking-[.12em] text-muted-foreground uppercase">Productos y precios salen del catálogo real de Deluxury</p></div>
+            <div className="mx-auto max-w-4xl"><div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{STARTERS.map((s) => <button key={s} type="button" onClick={() => void send(s)} disabled={loading} className="shrink-0 rounded-full border border-border bg-background px-3.5 py-2 text-[9px] text-muted-foreground transition hover:border-primary/50 hover:text-primary disabled:opacity-40">{s}</button>)}</div><form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-center gap-2 rounded-2xl border border-border bg-background p-1.5 focus-within:border-primary/45"><MessageCircle className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" /><input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Escríbele a Florencio…" className="min-w-0 flex-1 bg-transparent px-2 py-3 text-sm outline-none placeholder:text-muted-foreground/60" disabled={loading} /><button type="submit" disabled={!input.trim() || loading} aria-label="Enviar mensaje" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40"><Send className="h-4 w-4" /></button></form><p className="mt-2 text-center text-[8px] tracking-[.12em] text-muted-foreground uppercase">Productos y precios salen del catálogo real de Deluxury</p></div>
           </footer>
         </div>}
 
         {activeTab === "account" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-3xl"><p className="eyebrow">Mi cuenta</p><h2 className="mt-2 font-display text-4xl">Tu espacio con Florencio.</h2>{session ? <div className="mt-8 space-y-5"><div className="rounded-[26px] border border-border bg-white p-6"><div className="flex items-center gap-4"><Avatar src={profileImage} size="lg" /><div><p className="font-display text-2xl">{account?.full_name || "Cliente Deluxury"}</p><p className="mt-1 text-sm text-muted-foreground">{account?.email || session.user.email}</p></div></div><div className="mt-7 grid gap-4 sm:grid-cols-3">{[["Nombre", account?.full_name || "Pendiente"], ["Teléfono", account?.phone || "No registrado"], ["Correo", account?.email || session.user.email || ""]].map(([label, value]) => <div key={label} className="rounded-2xl bg-secondary/45 p-4"><p className="text-[8px] tracking-[.16em] text-primary uppercase">{label}</p><p className="mt-2 truncate text-sm">{value}</p></div>)}</div><Link to="/cuenta" className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-[9px] tracking-[.16em] text-primary-foreground uppercase">Gestionar cuenta <ArrowRight className="h-4 w-4" /></Link></div><button type="button" onClick={() => void supabase.auth.signOut()} className="rounded-full border border-border px-5 py-3 text-[9px] tracking-[.16em] uppercase hover:border-primary">Cerrar sesión</button></div> : <AuthPanel profileImage={profileImage} />}</div></div>}
-        {activeTab === "orders" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-5xl"><p className="eyebrow">Seguimiento</p><h2 className="mt-2 font-display text-4xl">Mis pedidos.</h2>{!session ? <div className="mt-8"><AuthPanel profileImage={profileImage} /></div> : orders.length === 0 ? <div className="mt-8 rounded-[26px] border border-dashed border-primary/20 bg-white/70 p-8"><Package className="h-5 w-5 text-primary" /><p className="mt-4 font-display text-2xl">Todavía no tienes pedidos.</p><p className="mt-2 text-sm text-muted-foreground">Cuando compres con tu cuenta, el estado aparecerá aquí.</p></div> : <div className="mt-8 space-y-4">{orders.map((order) => { const current = STATUS_STEPS.indexOf(order.status); return <article key={order.id} className="rounded-[26px] border border-border bg-white p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-display text-xl">{order.order_number}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString("es-CO")} · {order.city}</p></div><span className="rounded-full bg-primary/10 px-3 py-1.5 text-[9px] tracking-[.14em] text-primary uppercase">{order.status}</span></div><div className="mt-6 flex items-center gap-1">{STATUS_STEPS.map((step, i) => <div key={step} className="flex min-w-0 flex-1 items-center gap-1"><span title={step} className={`h-2.5 w-2.5 shrink-0 rounded-full ${i <= current ? "bg-primary" : "bg-border"}`} />{i < STATUS_STEPS.length - 1 && <span className={`h-px min-w-0 flex-1 ${i < current ? "bg-primary/50" : "bg-border"}`} />}</div>)}</div><div className="mt-5 grid gap-4 text-sm sm:grid-cols-3"><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Total</p><p className="mt-1 text-primary">{new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(order.total_cop))}</p></div><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Entrega</p><p className="mt-1">{order.delivery_date || "Por coordinar"}{order.delivery_slot ? ` · ${order.delivery_slot}` : ""}</p></div><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Dirección</p><p className="mt-1 truncate">{order.address || "Por coordinar"}</p></div></div><div className="mt-5 border-t border-border pt-4">{(order.items ?? []).slice(0, 4).map((item) => <div key={item.product_id} className="flex items-center gap-3 py-2"><img src={item.image || "/img/prod-01.jpg"} alt={item.name} className="h-10 w-8 rounded object-cover" /><p className="flex-1 text-sm">{item.qty} × {item.name}</p></div>)}</div></article>; })}</div>}</div></div>}
+        {activeTab === "orders" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-5xl"><p className="eyebrow">Seguimiento</p><h2 className="mt-2 font-display text-4xl">Mis pedidos.</h2>{!session ? <div className="mt-8"><AuthPanel profileImage={profileImage} /></div> : orders.length === 0 ? <div className="mt-8 rounded-[26px] border border-dashed border-primary/20 bg-white/70 p-8"><Package className="h-5 w-5 text-primary" /><p className="mt-4 font-display text-2xl">Todavía no tienes pedidos.</p><p className="mt-2 text-sm text-muted-foreground">Cuando compres con tu cuenta, el estado aparecerá aquí.</p></div> : <div className="mt-8 space-y-4">{orders.map((order) => { const paid = orderPaymentState(order) === "paid"; const current = Math.max(0, PROGRESS_STEPS.indexOf((order.status || "").toLowerCase())); return <article key={order.id} className="rounded-[26px] border border-border bg-white p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-display text-xl">{order.order_number}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString("es-CO")} · {order.city}</p></div><span className="rounded-full bg-primary/10 px-3 py-1.5 text-[9px] tracking-[.14em] text-primary uppercase">{orderStatusLabel(order)}</span></div><OrderPaymentPanel order={order} onChanged={() => void loadOrders()} />{paid && <div className="mt-6 flex items-center gap-1">{PROGRESS_STEPS.map((step, i) => <div key={step} className="flex min-w-0 flex-1 items-center gap-1"><span title={step} className={`h-2.5 w-2.5 shrink-0 rounded-full ${i <= current ? "bg-primary" : "bg-border"}`} />{i < PROGRESS_STEPS.length - 1 && <span className={`h-px min-w-0 flex-1 ${i < current ? "bg-primary/50" : "bg-border"}`} />}</div>)}</div>}<div className="mt-5 grid gap-4 text-sm sm:grid-cols-3"><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Total</p><p className="mt-1 text-primary">{new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(Number(order.total_cop))}</p></div><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Entrega</p><p className="mt-1">{order.delivery_date || "Por coordinar"}{order.delivery_slot ? ` · ${order.delivery_slot}` : ""}</p></div><div><p className="text-[8px] tracking-[.15em] text-muted-foreground uppercase">Dirección</p><p className="mt-1 truncate">{order.address || "Por coordinar"}</p></div></div><div className="mt-5 border-t border-border pt-4">{(order.items ?? []).slice(0, 4).map((item) => <div key={item.product_id} className="flex items-center gap-3 py-2"><img src={item.image || "/img/prod-01.jpg"} alt={item.name} className="h-10 w-8 rounded object-cover" /><p className="flex-1 text-sm">{item.qty} × {item.name}</p></div>)}</div></article>; })}</div>}</div></div>}
         {activeTab === "gallery" && <div className="flex-1 overflow-y-auto p-5 sm:p-8"><div className="mx-auto max-w-5xl"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="eyebrow">Detrás de Florencio</p><h2 className="mt-2 font-display text-4xl">Momentos de Florencio.</h2><p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Fotos y reels configurados desde el panel de administración de Deluxury.</p></div><ImageIcon className="h-5 w-5 text-primary" /></div><div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{galleryMedia.map((item, i) => <a key={`${item.url}-${i}`} href={item.link || (item.type === "reel" ? item.url : undefined)} target={item.type === "reel" || item.link ? "_blank" : undefined} rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary/25">
           {item.type === "image" ? <img src={item.url} alt={item.caption || "Florencio"} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" /> : isVideo(item.url) ? <video src={item.url} muted loop autoPlay playsInline className="h-full w-full object-cover" /> : <div className="flex h-full flex-col justify-end bg-[radial-gradient(circle_at_50%_28%,rgba(187,140,86,.2),transparent_62%)] p-5"><span className="text-[8px] tracking-[.16em] text-primary uppercase">Reel de Florencio</span><p className="mt-2 font-display text-xl">{item.caption || "Ver reel"}</p><ArrowRight className="mt-4 h-4 w-4 text-primary" /></div>}
         </a>)}</div></div></div>}
@@ -497,20 +517,39 @@ export default function FlorencioCatalogAssistant() {
             </button>
           </div>
           <div className="max-h-[62vh] overflow-y-auto px-5 py-5 sm:px-6">
+            {(() => {
+              const color = recommendations[0]?.requestedColor;
+              const matches = recommendations.filter((r) => r.colorMatch).length;
+              if (!color || matches === recommendations.length) return null;
+              return <p className="mb-4 rounded-2xl border border-primary/20 bg-primary/[.05] px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+                {matches === 0
+                  ? <>No veo un arreglo descrito en color <strong className="text-foreground">{colorLabel(color)}</strong> en esta selección. Si buscas otro color, <strong className="text-foreground">elige el arreglo que más te guste y pregúntanos por WhatsApp</strong> si hay una variante disponible.</>
+                  : <>Te muestro primero los que vienen en <strong className="text-foreground">{colorLabel(color)}</strong>. Si prefieres otro, pregúntanos por WhatsApp si hay variante en ese color.</>}
+              </p>;
+            })()}
             <div className="space-y-3">
               {recommendations.slice(0, 3).map((p) => {
-                const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
+                const category = categories.find((c) => c.id === p.category_id);
+                const quote = isQuoteCategory(category, settings);
+                const askColor = Boolean(p.requestedColor) && p.colorMatch === false;
                 return (
-                  <article key={p.id} className="grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border bg-white p-3 sm:grid-cols-[104px_minmax(0,1fr)_auto] sm:p-4">
-                    <div className="aspect-square overflow-hidden rounded-xl bg-secondary/40">
-                      <img src={p.images?.[0] ?? "/img/prod-01.jpg"} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+                  <article key={p.id} className="rounded-2xl border border-border bg-white p-3 sm:p-4">
+                    <div className="grid grid-cols-[88px_minmax(0,1fr)_auto] items-center gap-3 sm:grid-cols-[104px_minmax(0,1fr)_auto]">
+                      <div className="aspect-square overflow-hidden rounded-xl bg-secondary/40">
+                        <img src={p.images?.[0] ?? "/img/prod-01.jpg"} alt={upperName(p.name)} className="h-full w-full object-cover" loading="lazy" />
+                      </div>
+                      <div className="min-w-0">
+                        <Link to="/producto/$slug" params={{ slug: p.slug }} onClick={() => setRecommendationOpen(false)} className="block font-display text-lg leading-tight tracking-[0.03em] break-words hover:text-primary sm:text-xl">{upperName(p.name)}</Link>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{p.matchReasons?.[0] ?? "Una opción que coincide con tu búsqueda."}</p>
+                        <p className="mt-2 text-sm font-medium text-primary">{formatMoney(Number(p.price_cop), currency, trmValue)}</p>
+                      </div>
+                      <button type="button" onClick={() => addProduct(p)} className="shrink-0 rounded-full bg-primary px-3 py-2 text-[9px] tracking-[.14em] text-primary-foreground uppercase sm:px-4">{quote ? "Cotizar" : "Elegir"}</button>
                     </div>
-                    <div className="min-w-0">
-                      <Link to="/producto/$slug" params={{ slug: p.slug }} onClick={() => setRecommendationOpen(false)} className="block font-display text-lg leading-tight hover:text-primary sm:text-xl">{p.name}</Link>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{p.matchReasons?.[0] ?? "Una opción que coincide con tu búsqueda."}</p>
-                      <p className="mt-2 text-sm font-medium text-primary">{formatMoney(Number(p.price_cop), currency, trm)}</p>
-                    </div>
-                    <button type="button" onClick={() => addProduct(p)} className="shrink-0 rounded-full bg-primary px-3 py-2 text-[9px] tracking-[.14em] text-primary-foreground uppercase sm:px-4">Elegir</button>
+                    {askColor && p.requestedColor && (
+                      <button type="button" onClick={() => openWhatsApp(phone, colorQuestionMessage(p, p.requestedColor!, lang))} className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#25D366]/50 bg-[#25D366]/10 px-3.5 py-2 text-[9px] tracking-[.12em] text-[#128C7E] uppercase transition hover:bg-[#25D366]/20">
+                        <MessageCircle className="h-3.5 w-3.5" />Preguntar por color {colorLabel(p.requestedColor)} en WhatsApp
+                      </button>
+                    )}
                   </article>
                 );
               })}

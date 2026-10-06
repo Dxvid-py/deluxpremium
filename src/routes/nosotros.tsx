@@ -88,6 +88,10 @@ function About() {
           height={900}
           data-parallax="0.06"
           data-anim="clip"
+          onError={(e) => {
+            const img = e.currentTarget;
+            if (!img.src.endsWith("/img/prod-06.png")) img.src = "/img/prod-06.png";
+          }}
           className="aspect-square w-full rounded-sm object-cover"
         />
 

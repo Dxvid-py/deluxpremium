@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import OrderPaymentPanel, { orderStatusLabel, type PaymentOrder } from "@/components/OrderPaymentPanel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -551,7 +552,7 @@ function OrdersCard({ session }: { session: Session }) {
   const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
   const uid = session.user.id;
 
-  const { data: orders } = useQuery({
+  const { data: orders, refetch: refetchOrders } = useQuery({
     queryKey: ["my-orders", uid],
     queryFn: async (): Promise<Order[]> => {
       const { data, error } = await supabase
@@ -575,7 +576,7 @@ function OrdersCard({ session }: { session: Session }) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-display text-lg">{o.order_number}</p>
                 <span className="text-[10px] tracking-[0.24em] text-primary uppercase">
-                  {o.status}
+                  {orderStatusLabel(o as unknown as PaymentOrder)}
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -591,6 +592,7 @@ function OrdersCard({ session }: { session: Session }) {
               <p className="mt-4 text-sm">
                 {t("cart.total")}: {formatMoney(o.total_cop, currency, trm)}
               </p>
+              <OrderPaymentPanel order={o as unknown as PaymentOrder} onChanged={() => void refetchOrders()} />
             </div>
           ))}
         </div>

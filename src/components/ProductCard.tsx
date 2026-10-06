@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ShoppingBag } from "lucide-react";
+import { MessageCircle, ShoppingBag } from "lucide-react";
 import type { Product } from "@/lib/queries";
-import { settingsQuery } from "@/lib/queries";
+import { categoriesQuery, settingsQuery } from "@/lib/queries";
+import { DEFAULT_WHATSAPP, isQuoteProduct, openWhatsApp, quoteMessage, upperName } from "@/lib/florencio-support";
 import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { useContentTranslator, useI18n } from "@/lib/i18n";
@@ -14,10 +15,18 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
   const { t } = useI18n();
   const tc = useContentTranslator([product.name]);
   const { data: settings } = useQuery(settingsQuery);
+  const { data: categories } = useQuery(categoriesQuery);
   const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
+  // Bodas & Eventos: sin carrito, se cotiza por WhatsApp con el link del producto.
+  const quoteOnly = isQuoteProduct(product, categories, settings);
+  const categoryName = (categories ?? []).find((c) => c.id === product.category_id)?.name;
   const [added, setAdded] = useState(false);
   const { burst } = usePetalBurst();
   const navigate = useNavigate();
+
+  const onQuote = () => {
+    openWhatsApp(settings?.["whatsapp_number"] ?? DEFAULT_WHATSAPP, quoteMessage(product, categoryName));
+  };
 
   const onAdd = () => {
     add(product);
@@ -56,7 +65,7 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
         <div className="relative z-1 aspect-4/5 overflow-hidden rounded-sm">
           <img
             src={product.images?.[0] ?? "/img/prod-01.jpg"}
-            alt={tc(product.name)}
+            alt={upperName(tc(product.name))}
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-108"
           />
@@ -72,8 +81,8 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
       <div className="flex items-start justify-between gap-2 px-1 pt-4 sm:gap-4 sm:pt-5">
         <div className="min-w-0">
           <Link to="/producto/$slug" params={{ slug: product.slug }} onClick={onProductClick}>
-            <h3 className="font-display text-base leading-tight transition-colors group-hover:text-primary sm:text-xl">
-              {tc(product.name)}
+            <h3 className="font-display text-base leading-tight tracking-[0.03em] break-words transition-colors group-hover:text-primary sm:text-xl">
+              {upperName(tc(product.name))}
             </h3>
           </Link>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-2 sm:mt-2 sm:gap-3">
@@ -87,13 +96,25 @@ export default function ProductCard({ product, index = 0 }: { product: Product; 
             ) : null}
           </div>
         </div>
-        <button
-          onClick={onAdd}
-          aria-label={`${t("product.addToCart")}: ${product.name}`}
-          className="press mt-0.5 shrink-0 rounded-full border border-border p-2 transition-all duration-500 hover:border-primary hover:bg-primary hover:text-primary-foreground sm:mt-1 sm:p-2.5"
-        >
-          <ShoppingBag className={`h-4 w-4 ${added ? "animate-cart-pop" : ""}`} />
-        </button>
+        {quoteOnly ? (
+          <button
+            type="button"
+            onClick={onQuote}
+            aria-label={`Cotizar por WhatsApp: ${product.name}`}
+            className="press mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary px-3 py-2 text-[9px] tracking-[0.18em] text-primary uppercase transition-all duration-500 hover:bg-primary hover:text-primary-foreground sm:mt-1 sm:px-4"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Cotizar
+          </button>
+        ) : (
+          <button
+            onClick={onAdd}
+            aria-label={`${t("product.addToCart")}: ${product.name}`}
+            className="press mt-0.5 shrink-0 rounded-full border border-border p-2 transition-all duration-500 hover:border-primary hover:bg-primary hover:text-primary-foreground sm:mt-1 sm:p-2.5"
+          >
+            <ShoppingBag className={`h-4 w-4 ${added ? "animate-cart-pop" : ""}`} />
+          </button>
+        )}
       </div>
     </article>
   );

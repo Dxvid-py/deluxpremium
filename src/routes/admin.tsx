@@ -237,7 +237,8 @@ function AuthCard() {
   );
 }
 
-const STATUSES = ["nuevo", "confirmado", "en preparación", "en ruta", "entregado", "cancelado"];
+// "pagado", "pago_rechazado" y "anulado" los escribe el webhook de Bold; se listan para que el panel los muestre bien.
+const STATUSES = ["nuevo", "pagado", "pago_rechazado", "confirmado", "en preparación", "en ruta", "entregado", "cancelado", "anulado"];
 
 function OrdersPanel() {
   const qc = useQueryClient();

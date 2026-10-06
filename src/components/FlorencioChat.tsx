@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -23,24 +23,36 @@ import { formatMoney } from "@/lib/format";
 import { useContentTranslator, useI18n, type Lang } from "@/lib/i18n";
 import { playFlorencioAudio } from "@/lib/florencio-voice";
 import {
+  colorLabel,
   describeFlorencioFilters,
   parseFlorencioFilters,
-  rankFlorencioProducts,
   type FlorencioFilters,
+  type FlorencioRecommendation,
 } from "@/lib/florencio-recommendations";
 import { askFlorencioAI } from "@/lib/florencio-ai";
+import { planFlorencioTurn } from "@/lib/florencio-turn";
+import {
+  colorQuestionMessage,
+  DEFAULT_WHATSAPP,
+  isGreetingOnly,
+  isQuoteCategory,
+  openWhatsApp,
+  quoteMessage,
+  upperName,
+  welcomeMessage,
+} from "@/lib/florencio-support";
 
 const QUICK_PROMPTS: Record<Lang, string[]> = {
   es: [
-    "Quiero un regalo para mi pareja",
-    "Algo elegante para cumpleaños",
-    "Rosas para una ocasión especial",
+    "Quiero algo de amor",
+    "Flores para una boda",
+    "Un detalle de condolencias",
     "Máximo $200.000",
   ],
   en: [
-    "I need a gift for my partner",
-    "Something elegant for a birthday",
-    "Roses for a special occasion",
+    "Something for love",
+    "Flowers for a wedding",
+    "A sympathy tribute",
     "Maximum $200,000",
   ],
 };
@@ -52,6 +64,7 @@ type Message = {
   id: number;
   role: "florencio" | "user";
   text: string;
+  action?: { label: string; whatsappMessage: string };
 };
 
 function Avatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
@@ -79,17 +92,21 @@ function ProductMiniCard({
   product,
   onAdd,
   lang,
+  quote,
+  phone,
 }: {
-  product: Product;
-  onAdd: (product: Product) => void;
+  product: FlorencioRecommendation;
+  onAdd: (product: FlorencioRecommendation) => void;
   lang: Lang;
+  quote: boolean;
+  phone: string;
 }) {
   const { currency } = useStore();
   const { data: settings } = useQuery(settingsQuery);
-  const tc = useContentTranslator([product.name]);
   const trm = Number(
     (settings as Record<string, string> | undefined)?.["trm_cop_usd"] ?? 3950,
   );
+  const askColor = Boolean(product.requestedColor) && product.colorMatch === false;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-border/80 bg-white/80 shadow-[0_18px_50px_-32px_rgba(62,39,19,0.28)] backdrop-blur-sm transition duration-500 hover:-translate-y-1 hover:border-primary/40">
@@ -97,15 +114,15 @@ function ProductMiniCard({
         <div className="overflow-hidden rounded-xl bg-secondary/60">
           <img
             src={product.images?.[0] ?? "/img/prod-01.jpg"}
-            alt={tc(product.name)}
+            alt={upperName(product.name)}
             className="h-24 w-full object-cover transition duration-700 group-hover:scale-105 sm:h-28"
           />
         </div>
 
         <div className="min-w-0 py-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-display text-xl leading-tight">
-              {tc(product.name)}
+            <p className="font-display text-lg leading-tight tracking-[0.03em] break-words">
+              {upperName(product.name)}
             </p>
             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
           </div>
@@ -129,10 +146,23 @@ function ProductMiniCard({
               onClick={() => onAdd(product)}
               className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-[9px] tracking-[0.12em] text-primary-foreground uppercase transition hover:opacity-90"
             >
-              <ShoppingBag className="h-3 w-3" />
-              {lang === "en" ? "Add" : "Añadir"}
+              {quote ? <MessageCircle className="h-3 w-3" /> : <ShoppingBag className="h-3 w-3" />}
+              {quote ? (lang === "en" ? "Quote" : "Cotizar") : lang === "en" ? "Add" : "Añadir"}
             </button>
           </div>
+
+          {askColor && product.requestedColor && (
+            <button
+              type="button"
+              onClick={() => openWhatsApp(phone, colorQuestionMessage(product, product.requestedColor!, lang))}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#25D366]/50 bg-[#25D366]/10 px-3 py-2 text-[9px] tracking-[0.1em] text-[#128C7E] uppercase transition hover:bg-[#25D366]/20"
+            >
+              <MessageCircle className="h-3 w-3" />
+              {lang === "en"
+                ? `Ask about ${colorLabel(product.requestedColor, "en")} on WhatsApp`
+                : `Preguntar por color ${colorLabel(product.requestedColor)} en WhatsApp`}
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -161,10 +191,9 @@ export default function FlorencioChat({
   const { data: products = [] } = useQuery(productsQuery);
   const { data: categories = [] } = useQuery(categoriesQuery);
 
-  const recommendations = useMemo(
-    () => rankFlorencioProducts(products, categories, filters, 3),
-    [products, categories, filters],
-  );
+  const [recommendations, setRecommendations] = useState<FlorencioRecommendation[]>([]);
+  const { data: settings } = useQuery(settingsQuery);
+  const phone = settings?.["whatsapp_number"] ?? DEFAULT_WHATSAPP;
 
 
   useEffect(() => {
@@ -225,8 +254,7 @@ export default function FlorencioChat({
 
   useEffect(() => {
     if (!open || messages.length > 0) return;
-    const greeting = lang === "en" ? "Hi, I'm Florencio." : "Hola, soy Florencio.";
-    setMessages([{ id: nextId.current++, role: "florencio", text: greeting }]);
+    setMessages([{ id: nextId.current++, role: "florencio", text: welcomeMessage(lang) }]);
     setLastIntent("conversation");
   }, [lang, open, messages.length]);
 
@@ -248,77 +276,61 @@ export default function FlorencioChat({
     setThinking(true);
 
     try {
-      const result = await askFlorencioAI({
-        message: text,
-        history: messages
-          .slice(-8)
-          .map(({ role, text: messageText }) => ({
-            role,
-            text: messageText,
-          })),
-        currentFilters: filters,
-        language: lang,
+      const firstContact = !messages.some((m) => m.role === "user");
+      let ai: Awaited<ReturnType<typeof askFlorencioAI>> | null = null;
+      if (!isGreetingOnly(text)) {
+        try {
+          ai = await askFlorencioAI({
+            message: text,
+            history: messages.slice(-8).map(({ role, text: messageText }) => ({ role, text: messageText })),
+            currentFilters: filters,
+            language: lang,
+            categories: categories
+              .filter((c) => c.is_active !== false)
+              .map((c) => ({ name: c.name, slug: c.slug, description: c.description })),
+          });
+        } catch (error) {
+          console.warn("Florencio IA no disponible; uso el motor local.", error);
+        }
+      }
+
+      const plan = planFlorencioTurn({
+        text,
+        lang,
+        firstContact,
+        filters,
+        categories,
+        products,
+        settings,
+        ai,
+        limit: 3,
       });
 
-      setLastIntent(result.intent);
-      const local = parseFlorencioFilters(text);
-      const merged: FlorencioFilters = {
-        recipient: result.filters.recipient ?? local.recipient ?? filters.recipient,
-        occasion: result.filters.occasion ?? local.occasion ?? filters.occasion,
-        style: result.filters.style ?? local.style ?? filters.style,
-        color: result.filters.color ?? local.color ?? filters.color,
-        budgetMax: result.filters.budgetMax ?? local.budgetMax ?? filters.budgetMax,
-        keywords: Array.from(
-          new Set([
-            ...filters.keywords,
-            ...local.keywords,
-            ...(result.keywords ?? []),
-            ...(result.filters.keywords ?? []),
-          ]),
-        ).slice(0, 16),
-      };
-
-      setFilters(merged);
-      if (result.intent === "recommendation") {
+      setFilters(plan.merged);
+      setRecommendations(plan.recommendations);
+      setLastIntent(plan.shouldRecommend ? "recommendation" : plan.asking ? "discovery" : "conversation");
+      if (plan.shouldRecommend && plan.recommendations.length > 0) {
         playFlorencioAudio("recommend", lang);
         setRecommendationOpen(true);
+      } else if (plan.asking) {
+        playFlorencioAudio("ask", lang);
       }
-      if (result.intent === "discovery") playFlorencioAudio("ask", lang);
       setMessages((prev) => [
         ...prev,
-        { id: nextId.current++, role: "florencio", text: result.reply },
+        { id: nextId.current++, role: "florencio", text: plan.replyText, ...(plan.action ? { action: plan.action } : {}) },
       ]);
     } catch (error) {
-      const parsed = parseFlorencioFilters(text);
-      const merged: FlorencioFilters = {
-        recipient: parsed.recipient ?? filters.recipient,
-        occasion: parsed.occasion ?? filters.occasion,
-        style: parsed.style ?? filters.style,
-        color: parsed.color ?? filters.color,
-        budgetMax: parsed.budgetMax ?? filters.budgetMax,
-        keywords: Array.from(
-          new Set([...filters.keywords, ...parsed.keywords]),
-        ).slice(0, 16),
-      };
-
-      setFilters(merged);
-
-      setLastIntent("discovery");
-      const parts = describeFlorencioFilters(merged);
-      const reply = lang === "en"
-        ? (parts.length
-            ? `Got it. ${parts.join(" · ")}. I can use those details when I reconnect to the live catalog.`
-            : "Got it. Tell me one more detail about the occasion or the person, and I'll narrow it down.")
-        : (parts.length
-            ? `Perfecto. ${parts.join(" · ")}. Puedo usar esos datos para afinar la búsqueda cuando vuelva a conectar con el catálogo.`
-            : "Perfecto. Cuéntame un detalle más sobre la ocasión o la persona y lo voy afinando.");
-
+      console.warn("Florencio: error inesperado.", error);
       setMessages((prev) => [
         ...prev,
-        { id: nextId.current++, role: "florencio", text: reply },
+        {
+          id: nextId.current++,
+          role: "florencio",
+          text: lang === "en"
+            ? "I'm sorry, something went wrong. Could you write that again, please?"
+            : "Disculpa, tuve un inconveniente. ¿Me lo puedes escribir de nuevo, por favor?",
+        },
       ]);
-
-      console.warn("Florencio AI fallback activo.", error);
     } finally {
       setThinking(false);
     }
@@ -326,6 +338,7 @@ export default function FlorencioChat({
 
   const deleteChat = () => {
     setRecommendationOpen(false);
+    setRecommendations([]);
     setMessages([]);
     setFilters({ keywords: [] });
     setLastIntent("conversation");
@@ -334,11 +347,19 @@ export default function FlorencioChat({
     nextId.current = 1;
     try { localStorage.removeItem(CHAT_KEY); } catch { /* ignore */ }
     window.setTimeout(() => {
-      setMessages([{ id: nextId.current++, role: "florencio", text: lang === "en" ? "Hi, I'm Florencio." : "Hola, soy Florencio." }]);
+      setMessages([{ id: nextId.current++, role: "florencio", text: welcomeMessage(lang) }]);
     }, 0);
   };
 
-  const addRecommended = (product: Product) => {
+  const addRecommended = (product: FlorencioRecommendation) => {
+    const category = categories.find((c) => c.id === product.category_id);
+
+    // Bodas & Eventos: no hay carrito; se cotiza por WhatsApp con el link del producto.
+    if (isQuoteCategory(category, settings)) {
+      openWhatsApp(phone, quoteMessage(product, category?.name, lang));
+      return;
+    }
+
     add(product);
     setRecommendationOpen(false);
     playFlorencioAudio("added", lang);
@@ -349,14 +370,18 @@ export default function FlorencioChat({
       }),
     );
 
+    const needsColorAsk = Boolean(product.requestedColor) && product.colorMatch === false;
     setMessages((prev) => [
       ...prev,
       {
         id: nextId.current++,
         role: "florencio",
         text: lang === "en"
-          ? `Done. I added ${product.name} to your cart. I can also help you complete the gift.`
-          : `Listo. Añadí ${product.name} a tu carrito. También puedo ayudarte a completar el detalle.`,
+          ? `Done. I added ${upperName(product.name)} to your cart.${needsColorAsk ? " If you'd like it in another color, ask us on WhatsApp." : ""} I can also help you complete the gift.`
+          : `Listo. Añadí ${upperName(product.name)} a tu carrito.${needsColorAsk ? " Si lo quieres en otro color, pregúntanos por WhatsApp." : ""} También puedo ayudarte a completar el detalle.`,
+        ...(needsColorAsk && product.requestedColor
+          ? { action: { label: lang === "en" ? "Ask about another color" : "Preguntar por otro color", whatsappMessage: colorQuestionMessage(product, product.requestedColor, lang) } }
+          : {}),
       },
     ]);
   };
@@ -474,9 +499,21 @@ export default function FlorencioChat({
                 }`}
               >
                 {message.role === "florencio" ? (
-                  <p className="max-w-[92%] rounded-2xl rounded-tl-md border border-border/80 bg-white px-4 py-3 text-sm leading-relaxed shadow-[0_10px_30px_-24px_rgba(55,31,17,0.3)]">
-                    {message.text}
-                  </p>
+                  <div className="max-w-[92%]">
+                    <p className="rounded-2xl rounded-tl-md border border-border/80 bg-white px-4 py-3 text-sm leading-relaxed shadow-[0_10px_30px_-24px_rgba(55,31,17,0.3)]">
+                      {message.text}
+                    </p>
+                    {message.action && (
+                      <button
+                        type="button"
+                        onClick={() => openWhatsApp(phone, message.action!.whatsappMessage)}
+                        className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-[9px] tracking-[0.14em] text-white uppercase shadow-sm transition hover:opacity-90"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {message.action.label}
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <p className="max-w-[82%] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground shadow-[0_14px_30px_-20px_rgba(109,56,56,0.5)]">
                     {message.text}
@@ -551,8 +588,15 @@ export default function FlorencioChat({
               <button type="button" onClick={() => setRecommendationOpen(false)} className="rounded-full border border-border p-2" aria-label="Cerrar recomendaciones"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {visibleRecommendations.slice(0, 2).map((product) => (
-                <ProductMiniCard key={product.id} product={product} onAdd={addRecommended} lang={lang} />
+              {visibleRecommendations.slice(0, 3).map((product) => (
+                <ProductMiniCard
+                  key={product.id}
+                  product={product}
+                  onAdd={addRecommended}
+                  lang={lang}
+                  quote={isQuoteCategory(categories.find((c) => c.id === product.category_id), settings)}
+                  phone={phone}
+                />
               ))}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">

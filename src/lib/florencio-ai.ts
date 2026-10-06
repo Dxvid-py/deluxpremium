@@ -20,6 +20,8 @@ export async function askFlorencioAI(input: {
   history: Array<{ role: "user" | "florencio"; text: string }>;
   currentFilters: FlorencioFilters;
   language: Lang;
+  /** Colecciones reales del catálogo, para que la IA no invente categorías. */
+  categories?: Array<{ name: string; slug: string; description?: string }>;
 }): Promise<FlorencioAIResult> {
   const { data, error } = await supabase.functions.invoke("florencio-ai", {
     body: input,
