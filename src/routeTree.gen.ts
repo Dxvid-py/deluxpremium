@@ -13,13 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CondicionesRouteImport } from './routes/condiciones'
 import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as CuentaRouteImport } from './routes/cuenta'
 import { Route as FlorencioRouteImport } from './routes/florencio'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
 import { Route as PrivacidadRouteImport } from './routes/privacidad'
-import { Route as CondicionesRouteImport } from './routes/condiciones'
 import { Route as ColeccionSlugRouteImport } from './routes/coleccion.$slug'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
 
@@ -41,6 +41,11 @@ const CatalogoRoute = CatalogoRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CondicionesRoute = CondicionesRouteImport.update({
+  id: '/condiciones',
+  path: '/condiciones',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactoRoute = ContactoRouteImport.update({
@@ -73,11 +78,6 @@ const PrivacidadRoute = PrivacidadRouteImport.update({
   path: '/privacidad',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CondicionesRoute = CondicionesRouteImport.update({
-  id: '/condiciones',
-  path: '/condiciones',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ColeccionSlugRoute = ColeccionSlugRouteImport.update({
   id: '/coleccion/$slug',
   path: '/coleccion/$slug',
@@ -94,13 +94,13 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
+  '/condiciones': typeof CondicionesRoute
   '/contacto': typeof ContactoRoute
   '/cookies': typeof CookiesRoute
   '/cuenta': typeof CuentaRoute
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
-  '/condiciones': typeof CondicionesRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -109,13 +109,13 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
+  '/condiciones': typeof CondicionesRoute
   '/contacto': typeof ContactoRoute
   '/cookies': typeof CookiesRoute
   '/cuenta': typeof CuentaRoute
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
-  '/condiciones': typeof CondicionesRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -125,13 +125,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/catalogo': typeof CatalogoRoute
   '/checkout': typeof CheckoutRoute
+  '/condiciones': typeof CondicionesRoute
   '/contacto': typeof ContactoRoute
   '/cookies': typeof CookiesRoute
   '/cuenta': typeof CuentaRoute
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
-  '/condiciones': typeof CondicionesRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
@@ -142,13 +142,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/catalogo'
     | '/checkout'
+    | '/condiciones'
     | '/contacto'
     | '/cookies'
     | '/cuenta'
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
-    | '/condiciones'
     | '/coleccion/$slug'
     | '/producto/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -157,13 +157,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/catalogo'
     | '/checkout'
+    | '/condiciones'
     | '/contacto'
     | '/cookies'
     | '/cuenta'
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
-    | '/condiciones'
     | '/coleccion/$slug'
     | '/producto/$slug'
   id:
@@ -172,13 +172,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/catalogo'
     | '/checkout'
+    | '/condiciones'
     | '/contacto'
     | '/cookies'
     | '/cuenta'
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
-    | '/condiciones'
     | '/coleccion/$slug'
     | '/producto/$slug'
   fileRoutesById: FileRoutesById
@@ -188,6 +188,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   CatalogoRoute: typeof CatalogoRoute
   CheckoutRoute: typeof CheckoutRoute
+  CondicionesRoute: typeof CondicionesRoute
   ContactoRoute: typeof ContactoRoute
   CookiesRoute: typeof CookiesRoute
   CuentaRoute: typeof CuentaRoute
@@ -226,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/condiciones': {
+      id: '/condiciones'
+      path: '/condiciones'
+      fullPath: '/condiciones'
+      preLoaderRoute: typeof CondicionesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contacto': {
@@ -292,13 +300,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   CatalogoRoute: CatalogoRoute,
   CheckoutRoute: CheckoutRoute,
+  CondicionesRoute: CondicionesRoute,
   ContactoRoute: ContactoRoute,
   CookiesRoute: CookiesRoute,
   CuentaRoute: CuentaRoute,
   FlorencioRoute: FlorencioRoute,
   NosotrosRoute: NosotrosRoute,
   PrivacidadRoute: PrivacidadRoute,
-  CondicionesRoute: CondicionesRoute,
   ColeccionSlugRoute: ColeccionSlugRoute,
   ProductoSlugRoute: ProductoSlugRoute,
 }
