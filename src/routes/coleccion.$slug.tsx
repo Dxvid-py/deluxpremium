@@ -4,23 +4,29 @@ import ProductCard from "@/components/ProductCard";
 import PetalCanvas from "@/components/PetalCanvas";
 import { categoriesQuery, productsQuery } from "@/lib/queries";
 import { useReveal } from "@/hooks/use-reveal";
+import { breadcrumbJsonLd, canonicalLinks, clip, jsonLd, pageMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/coleccion/$slug")({
-  head: ({ params }) => {
-    const name = params.slug.charAt(0).toUpperCase() + params.slug.slice(1);
+  loader: async ({ params, context }) => {
+    try {
+      const categories = await context.queryClient.ensureQueryData(categoriesQuery);
+      await context.queryClient.ensureQueryData(productsQuery);
+      const category = categories.find((c) => c.slug === params.slug) ?? null;
+      return { name: category?.name ?? null, description: category?.description ?? "", image: category?.image_url ?? undefined };
+    } catch {
+      return { name: null, description: "", image: undefined };
+    }
+  },
+  head: ({ params, loaderData }) => {
+    const name = loaderData?.name ?? params.slug.charAt(0).toUpperCase() + params.slug.slice(1);
+    const path = `/coleccion/${params.slug}`;
+    const description = clip(
+      `${loaderData?.description ? `${loaderData.description} ` : ""}Flores de ${name} en Barranquilla: arreglos de lujo hechos a mano con entrega a domicilio.`,
+    );
     return {
-      meta: [
-        { title: `Colección ${name} · Floristería Deluxury` },
-        {
-          name: "description",
-          content: `Arreglos florales de lujo de la colección ${name}, hechos a mano en Barranquilla con entrega el mismo día.`,
-        },
-        { property: "og:title", content: `Colección ${name} · Deluxury` },
-        {
-          property: "og:description",
-          content: `Descubre la colección ${name} del atelier floral Deluxury.`,
-        },
-      ],
+      meta: pageMeta({ title: `Flores de ${name} en Barranquilla · Deluxury`, description, path, image: loaderData?.image }),
+      links: canonicalLinks(path),
+      scripts: [jsonLd(breadcrumbJsonLd([{ name: "Inicio", path: "/" }, { name: "Catálogo", path: "/catalogo" }, { name, path }]))],
     };
   },
   component: Collection,

@@ -9,23 +9,44 @@ import { useStore } from "@/lib/store";
 import ProductCard from "@/components/ProductCard";
 import { useReveal } from "@/hooks/use-reveal";
 import { launchFireworks } from "@/lib/fireworks";
+import { breadcrumbJsonLd, canonicalLinks, clip, jsonLd, pageMeta, productJsonLd } from "@/lib/seo";
 
 export const Route = createFileRoute("/producto/$slug")({
-  head: ({ params }) => ({
-    meta: [
-      { title: `${params.slug.replace(/-/g, " ")} · Floristería Deluxury` },
-      {
-        name: "description",
-        content:
-          "Arreglo floral de lujo hecho a mano en nuestro atelier de Barranquilla, con entrega el mismo día.",
-      },
-      { property: "og:title", content: "Pieza del atelier · Deluxury" },
-      {
-        property: "og:description",
-        content: "Arreglo floral de lujo hecho a mano con entrega el mismo día en Barranquilla.",
-      },
-    ],
-  }),
+  // Se leen los datos en el servidor para que Google reciba el título, la descripción y los
+  // datos estructurados del producto ya listos (no "Cargando…").
+  loader: async ({ params, context }) => {
+    try {
+      const [products, categories] = await Promise.all([
+        context.queryClient.ensureQueryData(productsQuery),
+        context.queryClient.ensureQueryData(categoriesQuery),
+      ]);
+      const product = products.find((p) => p.slug === params.slug) ?? null;
+      const categoryName = categories.find((c) => c.id === product?.category_id)?.name;
+      return { product, categoryName };
+    } catch {
+      return { product: null, categoryName: undefined };
+    }
+  },
+  head: ({ params, loaderData }) => {
+    const product = loaderData?.product ?? null;
+    const path = `/producto/${params.slug}`;
+    if (!product) {
+      return { meta: pageMeta({ title: "Flores a domicilio en Barranquilla · Floristería Deluxury", description: "Arreglos florales de lujo hechos a mano en Barranquilla con entrega a domicilio.", path }), links: canonicalLinks(path) };
+    }
+    const category = loaderData?.categoryName;
+    const title = `${product.name} · ${category ? `${category} · ` : ""}Flores en Barranquilla | Deluxury`;
+    const description = clip(
+      `${product.description || `${product.name}, arreglo floral hecho a mano.`} Entrega a domicilio en Barranquilla. Elige día y hora.`,
+    );
+    return {
+      meta: pageMeta({ title, description, path, image: product.images?.[0] }),
+      links: canonicalLinks(path),
+      scripts: [
+        jsonLd(productJsonLd(product, category)),
+        jsonLd(breadcrumbJsonLd([{ name: "Inicio", path: "/" }, { name: "Catálogo", path: "/catalogo" }, { name: product.name, path }])),
+      ],
+    };
+  },
   component: ProductDetail,
 });
 
@@ -123,7 +144,7 @@ function ProductDetail() {
               <Check className="h-4 w-4 text-primary" /> Tarjeta con dedicatoria escrita a mano
             </li>
             <li className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-primary" /> Entrega en Barranquilla · para hoy, pide con 6 h de anticipación
+              <Truck className="h-4 w-4 text-primary" /> Entrega en Barranquilla · para hoy, pide con 4 h de anticipación
             </li>
           </ul>
 

@@ -20,7 +20,10 @@ import { Route as CuentaRouteImport } from './routes/cuenta'
 import { Route as FlorencioRouteImport } from './routes/florencio'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
 import { Route as PrivacidadRouteImport } from './routes/privacidad'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ColeccionSlugRouteImport } from './routes/coleccion.$slug'
+import { Route as FloresTemaRouteImport } from './routes/flores.$tema'
 import { Route as ProductoSlugRouteImport } from './routes/producto.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -78,9 +81,24 @@ const PrivacidadRoute = PrivacidadRouteImport.update({
   path: '/privacidad',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ColeccionSlugRoute = ColeccionSlugRouteImport.update({
   id: '/coleccion/$slug',
   path: '/coleccion/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FloresTemaRoute = FloresTemaRouteImport.update({
+  id: '/flores/$tema',
+  path: '/flores/$tema',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductoSlugRoute = ProductoSlugRouteImport.update({
@@ -101,7 +119,10 @@ export interface FileRoutesByFullPath {
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
+  '/flores/$tema': typeof FloresTemaRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
 export interface FileRoutesByTo {
@@ -116,7 +137,10 @@ export interface FileRoutesByTo {
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
+  '/flores/$tema': typeof FloresTemaRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
 export interface FileRoutesById {
@@ -132,7 +156,10 @@ export interface FileRoutesById {
   '/florencio': typeof FlorencioRoute
   '/nosotros': typeof NosotrosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/coleccion/$slug': typeof ColeccionSlugRoute
+  '/flores/$tema': typeof FloresTemaRoute
   '/producto/$slug': typeof ProductoSlugRoute
 }
 export interface FileRouteTypes {
@@ -149,7 +176,10 @@ export interface FileRouteTypes {
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/coleccion/$slug'
+    | '/flores/$tema'
     | '/producto/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -164,7 +194,10 @@ export interface FileRouteTypes {
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/coleccion/$slug'
+    | '/flores/$tema'
     | '/producto/$slug'
   id:
     | '__root__'
@@ -179,7 +212,10 @@ export interface FileRouteTypes {
     | '/florencio'
     | '/nosotros'
     | '/privacidad'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/coleccion/$slug'
+    | '/flores/$tema'
     | '/producto/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -195,7 +231,10 @@ export interface RootRouteChildren {
   FlorencioRoute: typeof FlorencioRoute
   NosotrosRoute: typeof NosotrosRoute
   PrivacidadRoute: typeof PrivacidadRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ColeccionSlugRoute: typeof ColeccionSlugRoute
+  FloresTemaRoute: typeof FloresTemaRoute
   ProductoSlugRoute: typeof ProductoSlugRoute
 }
 
@@ -278,11 +317,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacidadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/coleccion/$slug': {
       id: '/coleccion/$slug'
       path: '/coleccion/$slug'
       fullPath: '/coleccion/$slug'
       preLoaderRoute: typeof ColeccionSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flores/$tema': {
+      id: '/flores/$tema'
+      path: '/flores/$tema'
+      fullPath: '/flores/$tema'
+      preLoaderRoute: typeof FloresTemaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/producto/$slug': {
@@ -307,7 +367,10 @@ const rootRouteChildren: RootRouteChildren = {
   FlorencioRoute: FlorencioRoute,
   NosotrosRoute: NosotrosRoute,
   PrivacidadRoute: PrivacidadRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ColeccionSlugRoute: ColeccionSlugRoute,
+  FloresTemaRoute: FloresTemaRoute,
   ProductoSlugRoute: ProductoSlugRoute,
 }
 export const routeTree = rootRouteImport

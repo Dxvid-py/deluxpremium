@@ -5,9 +5,17 @@ import ProductCard from "@/components/ProductCard";
 import FlorencioCatalogAssistant from "@/components/FlorencioCatalogAssistant";
 import { categoriesQuery, productsQuery } from "@/lib/queries";
 import { useReveal } from "@/hooks/use-reveal";
+import { canonicalLinks, pageMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/catalogo")({
-  head: () => ({ meta: [{ title: "Catálogo de flores premium · Floristería Deluxury" }, { name: "description", content: "Explora ramos, cajas y arreglos de lujo por colección, precio y ocasión." }] }),
+  head: () => ({
+    meta: pageMeta({
+      title: "Catálogo de flores a domicilio en Barranquilla · Rosas, ramos y cajas | Deluxury",
+      description: "Explora ramos, rosas, cajas y arreglos de lujo por colección: amor, cumpleaños, condolencias, bodas y eventos. Entrega a domicilio en Barranquilla.",
+      path: "/catalogo",
+    }),
+    links: canonicalLinks("/catalogo"),
+  }),
   component: Catalog,
 });
 type Sort = "destacados" | "precio-asc" | "precio-desc";

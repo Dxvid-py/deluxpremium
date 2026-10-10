@@ -14,6 +14,7 @@ import { launchFireworks } from "@/lib/fireworks";
 export const Route = createFileRoute("/checkout")({
   head: () => ({
     meta: [
+      { name: "robots", content: "noindex, nofollow" },
       { title: "Finalizar pedido · Floristería Deluxury" },
       {
         name: "description",

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, MapPin, MessageCircle, RefreshCw, Search } from "lucide-react";
+import { CalendarClock, MapPin, MessageCircle, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ordersQuery, type Order } from "@/lib/queries";
@@ -62,6 +62,28 @@ export default function OrdersAdminPanel() {
   const [filter, setFilter] = useState<Filter>("todos");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recientes" | "entrega">("recientes");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const removeOrders = async (ids: string[], label: string) => {
+    if (!ids.length) return;
+    if (!window.confirm(`¿Eliminar ${label}? Esta acción no se puede deshacer.`)) return;
+    const { error } = await supabase.from("orders").delete().in("id", ids);
+    if (error) {
+      toast.error(`No se pudo eliminar: ${error.message}`);
+      return;
+    }
+    setSelected(new Set());
+    toast.success(ids.length === 1 ? "Pedido eliminado" : `${ids.length} pedidos eliminados`);
+    await qc.invalidateQueries({ queryKey: ordersQuery.queryKey });
+  };
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { todos: orders.length, por_atender: 0, en_proceso: 0, entregados: 0, sin_pagar: 0 };
@@ -150,6 +172,34 @@ export default function OrdersAdminPanel() {
         </select>
       </div>
 
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setSelected(selected.size === visible.length ? new Set() : new Set(visible.map((o) => o.id)))}
+          className="border border-border px-4 py-2 text-[10px] tracking-[0.18em] uppercase hover:border-primary"
+        >
+          {selected.size === visible.length && visible.length > 0 ? "Quitar selección" : `Seleccionar los ${visible.length} visibles`}
+        </button>
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => void removeOrders([...selected], `${selected.size} pedido(s) seleccionados`)}
+            className="inline-flex items-center gap-2 border border-red-300 bg-red-50 px-4 py-2 text-[10px] tracking-[0.18em] text-red-700 uppercase hover:bg-red-100"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Eliminar seleccionados ({selected.size})
+          </button>
+        )}
+        {counts.sin_pagar > 0 && (
+          <button
+            type="button"
+            onClick={() => void removeOrders(orders.filter((o) => matchesFilter(o, "sin_pagar")).map((o) => o.id), `todos los pedidos sin pagar (${counts.sin_pagar})`)}
+            className="ml-auto border border-border px-4 py-2 text-[10px] tracking-[0.18em] text-muted-foreground uppercase hover:border-red-300 hover:text-red-700"
+          >
+            Eliminar todos los sin pagar ({counts.sin_pagar})
+          </button>
+        )}
+      </div>
+
       {visible.length === 0 ? (
         <p className="mt-10 text-sm text-muted-foreground">No hay pedidos con esos filtros.</p>
       ) : (
@@ -160,10 +210,11 @@ export default function OrdersAdminPanel() {
             const phoneDigits = (o.customer_phone ?? "").replace(/\D/g, "");
             const waPhone = phoneDigits.length === 10 ? `57${phoneDigits}` : phoneDigits;
             return (
-              <article key={o.id} className="border border-border bg-white/60 p-5 md:p-6">
+              <article key={o.id} className={`border bg-white/60 p-5 md:p-6 ${selected.has(o.id) ? "border-primary" : "border-border"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
+                      <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggle(o.id)} aria-label={`Seleccionar ${o.order_number}`} className="h-4 w-4 accent-[var(--primary)]" />
                       <p className="font-display text-xl text-primary">{o.order_number}</p>
                       <span className={`rounded-full border px-3 py-1 text-[9px] tracking-[0.14em] uppercase ${badge[state]}`}>
                         {state === "paid" ? "Pago confirmado" : state === "failed" ? "Pago fallido" : state === "cancelled" ? "Cancelado" : "Sin pagar"}
@@ -205,6 +256,13 @@ export default function OrdersAdminPanel() {
                         </option>
                       ))}
                     </select>
+                    <button
+                      type="button"
+                      onClick={() => void removeOrders([o.id], `el pedido ${o.order_number}`)}
+                      className="mt-2 ml-2 inline-flex items-center gap-1.5 border border-border px-3 py-2 text-[10px] tracking-[0.14em] text-muted-foreground uppercase hover:border-red-300 hover:text-red-700"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                    </button>
                   </div>
                 </div>
 

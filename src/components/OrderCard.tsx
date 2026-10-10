@@ -1,4 +1,11 @@
-import { CalendarClock, Check, MapPin, MessageCircle, User } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { CalendarClock, Check, MapPin, MessageCircle, Trash2, User } from "lucide-react";
+import { toast } from "sonner";
+import DeliveryPicker, { type DeliveryChoice } from "@/components/DeliveryPicker";
+import { supabase } from "@/integrations/supabase/client";
+import { settingsQuery } from "@/lib/queries";
+import { getDeliveryConfig, isSlotAvailable } from "@/lib/delivery";
 import OrderPaymentPanel, { orderPaymentState, orderStatusLabel, PROGRESS_STEPS, type PaymentOrder } from "@/components/OrderPaymentPanel";
 import { formatDeliveryDate } from "@/lib/delivery";
 import { formatMoney } from "@/lib/format";
@@ -46,6 +53,55 @@ export default function OrderCard({
 }) {
   const state = orderPaymentState(order);
   const paid = state === "paid";
+  const { data: settings } = useQuery(settingsQuery);
+  const deliveryConfig = getDeliveryConfig(settings);
+  const status = (order.status ?? "").toLowerCase();
+  const canReschedule = ["nuevo", "pagado", "confirmado"].includes(status) && state !== "cancelled" && state !== "failed";
+  const canDelete = state !== "paid"; // los pedidos pagados son un registro de compra: no se borran desde la cuenta
+  const [editing, setEditing] = useState(false);
+  const [choice, setChoice] = useState<DeliveryChoice>(null);
+  const [busy, setBusy] = useState<"save" | "delete" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const friendly = (message: string) =>
+    /function .* does not exist|could not find the function|schema cache/i.test(message)
+      ? "Falta activar esta función en la base de datos (migración order_self_service)."
+      : message;
+
+  const saveSchedule = async () => {
+    if (!choice) {
+      toast.error("Elige el día y la hora de entrega.");
+      return;
+    }
+    if (!isSlotAvailable(choice.date, choice.slot, deliveryConfig)) {
+      setChoice(null);
+      toast.error("Ese horario ya no está disponible. Elige otro.");
+      return;
+    }
+    setBusy("save");
+    const { error } = await supabase.rpc("reschedule_my_order" as never, { p_order_id: order.id, p_date: choice.date, p_slot: choice.slot } as never);
+    setBusy(null);
+    if (error) {
+      toast.error(friendly(error.message));
+      return;
+    }
+    toast.success("Listo, actualizamos la fecha y hora de entrega.");
+    setEditing(false);
+    setChoice(null);
+    onChanged?.();
+  };
+
+  const removeOrder = async () => {
+    setBusy("delete");
+    const { error } = await supabase.rpc("delete_my_order" as never, { p_order_id: order.id } as never);
+    setBusy(null);
+    if (error) {
+      toast.error(friendly(error.message));
+      return;
+    }
+    toast.success("Pedido eliminado.");
+    onChanged?.();
+  };
   const current = Math.max(0, PROGRESS_STEPS.indexOf((order.status || "").toLowerCase()));
   const created = new Date(order.created_at).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
 
@@ -142,6 +198,42 @@ export default function OrderCard({
             </div>
           </div>
         </dl>
+
+        {canReschedule && (
+          <div className="mt-5">
+            {!editing ? (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-primary/40 px-4 py-2.5 text-[10px] tracking-[0.16em] text-primary uppercase transition hover:bg-primary/5"
+              >
+                <CalendarClock className="h-3.5 w-3.5" /> Cambiar fecha u hora de entrega
+              </button>
+            ) : (
+              <div className="rounded-2xl border border-border bg-secondary/20 p-4">
+                <p className="mb-3 text-sm font-medium">Elige la nueva fecha y hora</p>
+                <DeliveryPicker config={deliveryConfig} value={choice} onChange={setChoice} />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveSchedule()}
+                    disabled={busy !== null || !choice}
+                    className="rounded-full bg-primary px-5 py-2.5 text-[10px] tracking-[0.16em] text-primary-foreground uppercase disabled:opacity-50"
+                  >
+                    {busy === "save" ? "Guardando…" : "Guardar cambio"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditing(false); setChoice(null); }}
+                    className="rounded-full border border-border px-5 py-2.5 text-[10px] tracking-[0.16em] uppercase"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-secondary/20 px-5 py-4 sm:px-6">
@@ -149,6 +241,25 @@ export default function OrderCard({
           <p className="text-[9px] tracking-[0.18em] text-muted-foreground uppercase">Total</p>
           <p className="font-display text-2xl text-primary">{formatMoney(Number(order.total_cop), "COP", 1)}</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {canDelete &&
+          (confirmDelete ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] text-red-800">
+              ¿Eliminar este pedido?
+              <button type="button" onClick={() => void removeOrder()} disabled={busy !== null} className="rounded-full bg-red-600 px-3 py-1.5 tracking-[0.12em] text-white uppercase disabled:opacity-50">
+                {busy === "delete" ? "…" : "Sí, eliminar"}
+              </button>
+              <button type="button" onClick={() => setConfirmDelete(false)} className="underline">No</button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-3 text-[10px] tracking-[0.16em] text-muted-foreground uppercase transition hover:border-red-300 hover:text-red-700"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+            </button>
+          ))}
         <button
           type="button"
           onClick={() => openWhatsApp(whatsapp ?? DEFAULT_WHATSAPP, orderWhatsAppMessage(order))}
@@ -156,6 +267,7 @@ export default function OrderCard({
         >
           <MessageCircle className="h-4 w-4" /> Preguntar por mi pedido
         </button>
+        </div>
       </footer>
     </article>
   );

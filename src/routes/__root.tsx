@@ -34,7 +34,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Floristería Deluxury · Atelier floral en Barranquilla" },
       { name: "description", content: "Arreglos florales de lujo hechos a mano en Barranquilla. Rosas premium, cajas firmadas y entrega el mismo día." },
       { property: "og:type", content: "website" },
+      { property: "og:locale", content: "es_CO" },
+      { property: "og:site_name", content: "Floristería Deluxury" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#fbf6ed" },
+      { name: "geo.region", content: "CO-ATL" },
+      { name: "geo.placename", content: "Barranquilla" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

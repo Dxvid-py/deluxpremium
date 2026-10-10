@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import OrderCard, { type OrderCardData } from "@/components/OrderCard";
+import { orderPaymentState } from "@/components/OrderPaymentPanel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -631,8 +632,29 @@ function OrdersCard({ session }: { session: Session }) {
     );
   }
 
+  const unpaid = orders.filter((o) => ["pending", "failed"].includes(orderPaymentState(o as unknown as OrderCardData)));
+
+  const clearUnpaid = async () => {
+    if (!window.confirm(`¿Eliminar tus ${unpaid.length} pedidos sin pagar? Los pedidos pagados no se tocan.`)) return;
+    const { data, error } = await supabase.rpc("delete_my_unpaid_orders" as never);
+    if (error) {
+      toast.error(/does not exist|schema cache/i.test(error.message) ? "Falta activar esta función en la base de datos (migración order_self_service)." : error.message);
+      return;
+    }
+    toast.success(`Se eliminaron ${String(data ?? unpaid.length)} pedidos sin pagar.`);
+    void refetch();
+  };
+
   return (
     <div className="mt-8 space-y-5">
+      {unpaid.length >= 2 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 px-5 py-4 text-sm text-amber-900">
+          <p>Tienes {unpaid.length} pedidos sin pagar. ¿Quieres limpiarlos?</p>
+          <button type="button" onClick={() => void clearUnpaid()} className="rounded-full border border-amber-300 bg-white px-4 py-2 text-[10px] tracking-[0.16em] uppercase hover:border-red-300 hover:text-red-700">
+            Eliminar pedidos sin pagar
+          </button>
+        </div>
+      )}
       {orders.map((o) => (
         <OrderCard key={o.id} order={o as unknown as OrderCardData} whatsapp={settings?.["whatsapp_number"]} onChanged={() => void refetch()} />
       ))}

@@ -51,8 +51,8 @@ const DICT: Dict = {
   },
   "home.b2.title": { es: "Entrega el mismo día", en: "Same-day delivery" },
   "home.b2.copy": {
-    es: "Pedidos hechos en la mañana, con 6 horas de anticipación, llegan hoy en Barranquilla.",
-    en: "Orders placed in the morning, 6 hours ahead, arrive today in Barranquilla.",
+    es: "Pedidos hechos en la mañana, con 4 horas de anticipación, llegan hoy en Barranquilla.",
+    en: "Orders placed in the morning, 4 hours ahead, arrive today in Barranquilla.",
   },
   "home.b3.title": { es: "Diseño de autor", en: "Signature design" },
   "home.b3.copy": {

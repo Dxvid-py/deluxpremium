@@ -29,7 +29,7 @@ export const DEFAULT_SCHEDULE: Record<number, string[]> = {
   6: ["09:00 – 12:00", "12:00 – 15:00", "15:00 – 18:00", "18:00 – 20:00"],
 };
 
-export const DEFAULT_LEAD_HOURS = 6;
+export const DEFAULT_LEAD_HOURS = 4;
 export const MAX_DAYS_AHEAD = 60;
 
 export const WEEKDAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
