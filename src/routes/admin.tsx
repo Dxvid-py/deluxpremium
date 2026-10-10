@@ -21,6 +21,9 @@ import ImageField from "@/components/ImageField";
 import CustomersPanel from "@/components/admin/CustomersPanel";
 import FlorencioAdminPanel from "@/components/admin/FlorencioAdminPanel";
 import HomeMediaPanel from "@/components/admin/HomeMediaPanel";
+import OrdersAdminPanel from "@/components/admin/OrdersAdminPanel";
+import DeliveryAdminPanel from "@/components/admin/DeliveryAdminPanel";
+import PopupsAdminPanel from "@/components/admin/PopupsAdminPanel";
 import { formatMoney, slugify } from "@/lib/format";
 
 export const Route = createFileRoute("/admin")({
@@ -36,7 +39,7 @@ export const Route = createFileRoute("/admin")({
   component: Admin,
 });
 
-type Tab = "pedidos" | "productos" | "categorias" | "galeria" | "instagram" | "clientes" | "inicio" | "florencio" | "config";
+type Tab = "pedidos" | "productos" | "categorias" | "galeria" | "instagram" | "clientes" | "inicio" | "ventanas" | "entregas" | "florencio" | "config";
 
 function Admin() {
   const [session, setSession] = useState<Session | null>(null);
@@ -113,6 +116,8 @@ function Admin() {
     { key: "instagram", label: "Instagram" },
     { key: "clientes", label: "Clientes" },
     { key: "inicio", label: "Inicio" },
+    { key: "ventanas", label: "Ventanas emergentes" },
+    { key: "entregas", label: "Entregas" },
     { key: "florencio", label: "Florencio" },
     { key: "config", label: "TRM y ajustes" },
   ];
@@ -150,13 +155,15 @@ function Admin() {
         </div>
 
         <div className="mt-10">
-          {tab === "pedidos" && <OrdersPanel />}
+          {tab === "pedidos" && <OrdersAdminPanel />}
           {tab === "productos" && <ProductsPanel />}
           {tab === "categorias" && <CategoriesPanel />}
           {tab === "galeria" && <GalleryPanel />}
           {tab === "instagram" && <InstagramPanel />}
           {tab === "clientes" && <CustomersPanel />}
           {tab === "inicio" && <HomeMediaPanel />}
+          {tab === "ventanas" && <PopupsAdminPanel />}
+          {tab === "entregas" && <DeliveryAdminPanel />}
           {tab === "florencio" && <FlorencioAdminPanel />}
           {tab === "config" && <SettingsPanel />}
         </div>
@@ -233,70 +240,6 @@ function AuthCard() {
           {mode === "login" ? "Crear una cuenta" : "Ya tengo cuenta"}
         </button>
       </form>
-    </div>
-  );
-}
-
-// "pagado", "pago_rechazado" y "anulado" los escribe el webhook de Bold; se listan para que el panel los muestre bien.
-const STATUSES = ["nuevo", "pagado", "pago_rechazado", "confirmado", "en preparación", "en ruta", "entregado", "cancelado", "anulado"];
-
-function OrdersPanel() {
-  const qc = useQueryClient();
-  const { data: orders, isLoading } = useQuery(ordersQuery);
-
-  const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-    if (error) { toast.error("No se pudo actualizar"); return; }
-    toast.success("Estado actualizado");
-    qc.invalidateQueries({ queryKey: ordersQuery.queryKey });
-  };
-
-  if (isLoading) return <p className="text-sm text-muted-foreground">Cargando pedidos…</p>;
-  if (!orders || orders.length === 0)
-    return <p className="text-sm text-muted-foreground">Aún no hay pedidos registrados.</p>;
-
-  return (
-    <div className="space-y-4">
-      {orders.map((o) => (
-        <article key={o.id} className="border border-border p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="font-display text-xl text-primary">{o.order_number}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {o.customer_name} · {o.customer_phone}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {o.address}, {o.city}
-                {o.delivery_date ? ` · ${o.delivery_date} ${o.delivery_slot ?? ""}` : ""}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-display text-xl">{formatMoney(Number(o.total_cop), "COP", 1)}</p>
-              <select
-                value={o.status}
-                onChange={(e) => updateStatus(o.id, e.target.value)}
-                className="mt-2 border border-input bg-card px-3 py-2 text-xs"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
-            {(o.items ?? []).map((it) => (
-              <li key={it.product_id}>
-                {it.qty} × {it.name}
-              </li>
-            ))}
-          </ul>
-          {o.dedication && (
-            <p className="mt-3 text-sm italic text-muted-foreground">“{o.dedication}”</p>
-          )}
-        </article>
-      ))}
     </div>
   );
 }

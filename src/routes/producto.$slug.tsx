@@ -8,6 +8,7 @@ import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import ProductCard from "@/components/ProductCard";
 import { useReveal } from "@/hooks/use-reveal";
+import { launchFireworks } from "@/lib/fireworks";
 
 export const Route = createFileRoute("/producto/$slug")({
   head: ({ params }) => ({
@@ -122,7 +123,7 @@ function ProductDetail() {
               <Check className="h-4 w-4 text-primary" /> Tarjeta con dedicatoria escrita a mano
             </li>
             <li className="flex items-center gap-2">
-              <Truck className="h-4 w-4 text-primary" /> Entrega el mismo día en Barranquilla
+              <Truck className="h-4 w-4 text-primary" /> Entrega en Barranquilla · para hoy, pide con 6 h de anticipación
             </li>
           </ul>
 
@@ -146,7 +147,7 @@ function ProductDetail() {
               <input
                 type="checkbox"
                 checked={deliveryWithFlorencio}
-                onChange={(e) => setDeliveryWithFlorencio(e.target.checked)}
+                onChange={(e) => { setDeliveryWithFlorencio(e.target.checked); if (e.target.checked) { const r = e.target.getBoundingClientRect(); launchFireworks({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); } }}
                 className="mt-1 h-4 w-4 accent-[var(--primary)]"
               />
               <span className="min-w-0 flex-1">

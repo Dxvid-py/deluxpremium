@@ -50,8 +50,8 @@ const SCENES: Scene[] = [
     titleEn: "It arrives",
     accentEs: "que las palabras",
     accentEn: "before the words",
-    copyEs: "Pide antes de las 2:00 p.m. y lo entregamos hoy, con empaque firmado.",
-    copyEn: "Order before 2:00 p.m. and we deliver today, in signed packaging.",
+    copyEs: "Pide en la mañana, con mínimo 6 horas de anticipación, y lo entregamos hoy con empaque firmado.",
+    copyEn: "Order in the morning, at least 6 hours ahead, and we deliver today in signed packaging.",
     image: "/img/prod-06.jpg",
   },
 ];

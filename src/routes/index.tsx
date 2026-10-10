@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";
 import HeroVideo from "@/components/HeroVideo";
+import HomePopups from "@/components/HomePopups";
 import ProductCard from "@/components/ProductCard";
 import CollectionsShowcase from "@/components/CollectionsShowcase";
 import BenefitsMarquee from "@/components/BenefitsMarquee";
@@ -44,6 +45,7 @@ function Home() {
   const florencioImage = settings?.["florencio_profile_image_url"] || settings?.["florencio_intro_image_url"] || "/img/florencio.png";
 
   return <>
+    <HomePopups />
     <HeroVideo />
     <BenefitsMarquee />
     <CollectionsShowcase />

@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import OrderPaymentPanel, { orderStatusLabel, type PaymentOrder } from "@/components/OrderPaymentPanel";
+import OrderCard, { type OrderCardData } from "@/components/OrderCard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, LogOut, MapPin, Plus, Star, Trash2, Volume2, VolumeX, Cookie } from "lucide-react";
+import { Loader2, LogOut, MapPin, Package, Plus, Settings2, Star, Trash2, Volume2, VolumeX, Cookie } from "lucide-react";
 import type { Session } from "@/integrations/supabase/client";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
@@ -72,28 +72,75 @@ function Cuenta() {
 
   if (!session) return <AuthCard />;
 
+  return <AccountHome session={session} />;
+}
+
+function AccountHome({ session }: { session: Session }) {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<"pedidos" | "configuracion">("pedidos");
+
+  useEffect(() => {
+    if (window.location.hash === "#configuracion") setTab("configuracion");
+  }, []);
+
+  const go = (next: "pedidos" | "configuracion") => {
+    setTab(next);
+    try { window.history.replaceState(null, "", `#${next}`); } catch { /* ignore */ }
+  };
+
+  const name = (session.user.user_metadata as { full_name?: string } | undefined)?.full_name || session.user.email || "";
+  const initial = name.trim().charAt(0).toUpperCase() || "D";
+
+  const tabs = [
+    { key: "pedidos" as const, label: "Mis pedidos", icon: Package },
+    { key: "configuracion" as const, label: "Configuración", icon: Settings2 },
+  ];
+
   return (
     <div className="pt-28 pb-24 md:pt-36">
-      <div className="mx-auto max-w-5xl px-5 md:px-8">
-        <div className="reveal flex flex-wrap items-end justify-between gap-6">
-          <div>
-            <p className="eyebrow">{session.user.email}</p>
-            <h1 className="mt-3 font-display text-4xl md:text-5xl">
-              {t("account.title1")} <span className="text-primary">{t("account.title2")}</span>
-            </h1>
+      <div className="mx-auto max-w-4xl px-5 md:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-5">
+          <div className="flex items-center gap-4">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-[#f3e7d3] font-display text-2xl text-primary">{initial}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] tracking-[0.22em] text-muted-foreground uppercase">{t("account.title1")} {t("account.title2")}</p>
+              <h1 className="truncate font-display text-3xl md:text-4xl">{name}</h1>
+              <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
+            </div>
           </div>
           <button
             onClick={() => supabase.auth.signOut()}
-            className="press inline-flex items-center gap-2 border border-border px-6 py-3 text-[10px] tracking-[0.24em] uppercase hover:border-primary"
+            className="press inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-[10px] tracking-[0.2em] uppercase hover:border-primary"
           >
             <LogOut className="h-3.5 w-3.5" /> {t("auth.signOut")}
           </button>
         </div>
 
-        <ProfileCard session={session} />
-        <PreferencesCard />
-        <AddressesCard session={session} />
-        <OrdersCard session={session} />
+        <nav className="mt-8 flex gap-1 rounded-full border border-border bg-white/70 p-1" role="tablist" aria-label="Secciones de tu cuenta">
+          {tabs.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => go(key)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-3 text-[10px] tracking-[0.18em] uppercase transition ${
+                tab === key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </nav>
+
+        {tab === "pedidos" ? (
+          <OrdersCard session={session} />
+        ) : (
+          <div>
+            <ProfileCard session={session} />
+            <PreferencesCard />
+            <AddressesCard session={session} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -232,7 +279,7 @@ function AuthCard() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="reveal mt-14 border border-border p-6 md:p-8">
+    <section className="mt-8 rounded-2xl border border-border bg-white/70 p-6 md:p-8">
       <h2 className="font-display text-2xl">{title}</h2>
       <div className="mt-6">{children}</div>
     </section>
@@ -546,14 +593,12 @@ function AddressesCard({ session }: { session: Session }) {
 }
 
 function OrdersCard({ session }: { session: Session }) {
-  const { t } = useI18n();
-  const { currency } = useStore();
   const { data: settings } = useQuery(settingsQuery);
-  const trm = Number(settings?.["trm_cop_usd"] ?? 3950);
   const uid = session.user.id;
 
-  const { data: orders, refetch: refetchOrders } = useQuery({
+  const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ["my-orders", uid],
+    refetchInterval: 30_000,
     queryFn: async (): Promise<Order[]> => {
       const { data, error } = await supabase
         .from("orders")
@@ -565,38 +610,32 @@ function OrdersCard({ session }: { session: Session }) {
     },
   });
 
+  if (isLoading) {
+    return (
+      <div className="mt-10 flex justify-center py-16">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!orders || orders.length === 0) {
+    return (
+      <div className="mt-10 rounded-2xl border border-dashed border-primary/25 bg-white/60 p-10 text-center">
+        <Package className="mx-auto h-6 w-6 text-primary" />
+        <p className="mt-4 font-display text-2xl">Aún no tienes pedidos</p>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Cuando hagas tu primera compra, aquí podrás seguir su estado paso a paso.</p>
+        <Link to="/catalogo" className="mt-6 inline-flex rounded-full bg-primary px-7 py-3.5 text-[10px] tracking-[0.2em] text-primary-foreground uppercase">
+          Ver catálogo
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <Section title={t("account.orders")}>
-      {(orders ?? []).length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("account.noOrders")}</p>
-      ) : (
-        <div className="space-y-4">
-          {(orders ?? []).map((o) => (
-            <div key={o.id} className="border border-border/70 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="font-display text-lg">{o.order_number}</p>
-                <span className="text-[10px] tracking-[0.24em] text-primary uppercase">
-                  {orderStatusLabel(o as unknown as PaymentOrder)}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(o.created_at).toLocaleDateString()} · {o.address}, {o.city}
-              </p>
-              <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
-                {(o.items ?? []).map((it, i) => (
-                  <li key={i}>
-                    {it.qty} × {it.name}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 text-sm">
-                {t("cart.total")}: {formatMoney(o.total_cop, currency, trm)}
-              </p>
-              <OrderPaymentPanel order={o as unknown as PaymentOrder} onChanged={() => void refetchOrders()} />
-            </div>
-          ))}
-        </div>
-      )}
-    </Section>
+    <div className="mt-8 space-y-5">
+      {orders.map((o) => (
+        <OrderCard key={o.id} order={o as unknown as OrderCardData} whatsapp={settings?.["whatsapp_number"]} onChanged={() => void refetch()} />
+      ))}
+    </div>
   );
 }

@@ -7,6 +7,9 @@ import { settingsQuery } from "@/lib/queries";
 import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { getBoldPaymentStatus, openBoldCheckout, prepareBoldPayment } from "@/lib/bold-payment";
+import DeliveryPicker, { type DeliveryChoice } from "@/components/DeliveryPicker";
+import { getDeliveryConfig, isSlotAvailable, formatDeliveryDate } from "@/lib/delivery";
+import { launchFireworks } from "@/lib/fireworks";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -27,8 +30,6 @@ export const Route = createFileRoute("/checkout")({
   component: Checkout,
 });
 
-const SLOTS = ["9:00 – 12:00", "12:00 – 15:00", "15:00 – 18:00", "18:00 – 20:00"];
-
 function Checkout() {
   const { lines, subtotal, clear, currency, deliveryWithFlorencio, setDeliveryWithFlorencio } = useStore();
   const { data: settings } = useQuery(settingsQuery);
@@ -37,6 +38,7 @@ function Checkout() {
   const [sessionReady, setSessionReady] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<"checking" | "approved" | "rejected" | null>(null);
   const [paymentOrderNumber, setPaymentOrderNumber] = useState("");
+  const [delivery, setDelivery] = useState<DeliveryChoice>(null);
   const [form, setForm] = useState({
     customer_name: "",
     customer_phone: "",
@@ -44,8 +46,6 @@ function Checkout() {
     recipient_name: "",
     address: "",
     city: "Barranquilla",
-    delivery_date: "",
-    delivery_slot: SLOTS[0]!,
     dedication: "",
     notes: "",
   });
@@ -58,6 +58,7 @@ function Checkout() {
   const florencioFee = florencioEnabled && deliveryWithFlorencio ? Number(settings?.["florencio_delivery_price_cop"] ?? 0) : 0;
   const total = subtotal + shippingDue + florencioFee;
   const whatsapp = settings?.["whatsapp_number"] ?? "573006301123";
+  const deliveryConfig = getDeliveryConfig(settings);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -125,6 +126,18 @@ function Checkout() {
       toast.error("Completa nombre, teléfono y dirección de entrega.");
       return;
     }
+    if (!delivery) {
+      toast.error("Elige el día y la hora de entrega para continuar.");
+      document.getElementById("delivery-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    // Se vuelve a validar con la hora real de Colombia justo antes de crear el pedido.
+    if (!isSlotAvailable(delivery.date, delivery.slot, deliveryConfig)) {
+      setDelivery(null);
+      toast.error("Ese horario ya no está disponible. Por favor elige otro.");
+      document.getElementById("delivery-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     setSending(true);
 
     const sessionData = latestSession;
@@ -137,8 +150,8 @@ function Checkout() {
       recipient_name: form.recipient_name || null,
       address: form.address,
       city: form.city,
-      delivery_date: form.delivery_date || null,
-      delivery_slot: form.delivery_slot,
+      delivery_date: delivery.date,
+      delivery_slot: delivery.slot,
       dedication: form.dedication || null,
       notes: [form.notes, deliveryWithFlorencio ? `Domicilio especial con Florencio${florencioFee ? `: +${florencioFee}` : ""}` : ""].filter(Boolean).join(" · ") || null,
       items: lines.map((l) => ({
@@ -201,6 +214,7 @@ function Checkout() {
     `Total estimado: ${formatMoney(total, "COP", trm)}`,
     `Cliente: ${form.customer_name || "Por confirmar"} (${form.customer_phone || "Por confirmar"})`,
     `Dirección: ${form.address || "Por confirmar"}, ${form.city}`,
+    delivery ? `Entrega: ${formatDeliveryDate(delivery.date)} · ${delivery.slot}` : "",
   ].join("\n");
 
   const field =
@@ -307,36 +321,22 @@ function Checkout() {
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
                 />
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <input
-                    className={field}
-                    placeholder="Ciudad"
-                    value={form.city}
-                    onChange={(e) => set("city", e.target.value)}
-                  />
-                  <input
-                    className={field}
-                    type="date"
-                    value={form.delivery_date}
-                    onChange={(e) => set("delivery_date", e.target.value)}
-                  />
-                  <select
-                    className={`${field} bg-card`}
-                    value={form.delivery_slot}
-                    onChange={(e) => set("delivery_slot", e.target.value)}
-                  >
-                    {SLOTS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <input
+                  className={field}
+                  placeholder="Ciudad"
+                  value={form.city}
+                  onChange={(e) => set("city", e.target.value)}
+                />
+              </fieldset>
+
+              <fieldset id="delivery-section" className="space-y-4">
+                <legend className="eyebrow mb-3">Fecha y hora de entrega *</legend>
+                <DeliveryPicker config={deliveryConfig} value={delivery} onChange={setDelivery} />
               </fieldset>
 
               {florencioEnabled && (
                 <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-primary/20 bg-secondary/35 p-4">
-                  <input type="checkbox" checked={deliveryWithFlorencio} onChange={(e) => setDeliveryWithFlorencio(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--primary)]" />
+                  <input type="checkbox" checked={deliveryWithFlorencio} onChange={(e) => { setDeliveryWithFlorencio(e.target.checked); if (e.target.checked) { const r = e.target.getBoundingClientRect(); launchFireworks({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); } }} className="mt-1 h-4 w-4 accent-[var(--primary)]" />
                   <span className="min-w-0 flex-1">
                     <span className="font-medium">Domicilio especial con Florencio</span>
                     <span className="mt-1 block text-xs text-muted-foreground">{florencioFee > 0 ? `Suma ${formatMoney(florencioFee, currency, trm)} al total.` : "Tarifa a coordinar."}</span>
@@ -386,10 +386,10 @@ function Checkout() {
                 <>
                   <button
                     type="submit"
-                    disabled={sending}
+                    disabled={sending || !delivery}
                     className="w-full bg-primary py-4 text-[11px] tracking-[0.28em] text-primary-foreground uppercase transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
-                    {sending ? "Preparando pago…" : "Pagar ahora"}
+                    {sending ? "Preparando pago…" : delivery ? "Pagar ahora" : "Elige fecha y hora de entrega"}
                   </button>
                   <p className="text-center text-xs leading-5 text-muted-foreground">
                     Pago seguro. Si tienes problemas para pagar o prefieres hacerlo por WhatsApp, podemos ayudarte con tu pedido.
