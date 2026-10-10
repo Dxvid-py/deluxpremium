@@ -56,7 +56,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
-  return <html lang="es"><head><HeadContent /></head><body className="overflow-x-clip">{children}<Scripts /></body></html>;
+  return <html lang="es"><head>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18408435995"></script>
+      <script dangerouslySetInnerHTML={{ __html: `window.dataLayer = window.dataLayer || []; function gtag(){window.dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'AW-18408435995');` }} />
+      <HeadContent />
+    </head><body className="overflow-x-clip">{children}<Scripts /></body></html>;
 }
 
 function ScrollProgress() { useScrollProgress(); return <div className="scroll-progress-bar" aria-hidden="true" />; }
