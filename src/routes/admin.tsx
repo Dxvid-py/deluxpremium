@@ -22,6 +22,7 @@ import CustomersPanel from "@/components/admin/CustomersPanel";
 import FlorencioAdminPanel from "@/components/admin/FlorencioAdminPanel";
 import HomeMediaPanel from "@/components/admin/HomeMediaPanel";
 import OrdersAdminPanel from "@/components/admin/OrdersAdminPanel";
+import ExportCatalogButton from "@/components/admin/ExportCatalogButton";
 import DeliveryAdminPanel from "@/components/admin/DeliveryAdminPanel";
 import PopupsAdminPanel from "@/components/admin/PopupsAdminPanel";
 import { formatMoney, slugify } from "@/lib/format";
@@ -340,7 +341,12 @@ function ProductsPanel() {
         </button>
       </div>
 
-      <div className="mt-8 space-y-3">
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <p className="eyebrow">{(products ?? []).length} productos</p>
+        <ExportCatalogButton products={products ?? []} categories={categories ?? []} />
+      </div>
+
+      <div className="mt-4 space-y-3">
         {(products ?? []).map((p) => (
           <div
             key={p.id}
